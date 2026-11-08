@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blind Ranking Britain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout idea: category grid (home) -> one photo card beside ten numbered slots (game) -> ranked list (result). Navy ground, post-box red accent. */
+  --bg: #0e1a33;
+  --panel: #16264a;
+  --line: #2c4072;
+  --text: #f2f5fb;
+  --muted: #a3b3d6;
+  --accent: #e0262d;
+  --gold: #f2c14e;
+  --display: 'Oswald', 'Arial Narrow', Impact, sans-serif;
+  --body: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--body); font-size: 17px; line-height: 1.4; }
+body { min-height: 100%; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; }
+h1, h2, h3 { font-family: var(--display); text-transform: uppercase; letter-spacing: .02em; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2.4rem, 9vw, 4rem); line-height: 1; font-weight: 700; }
+h1 span { color: var(--accent); }
+.lede { color: var(--muted); max-width: 52ch; margin: 12px 0 0; }
+.stripe { height: 6px; margin: 20px 0 24px; background: linear-gradient(90deg, var(--accent) 0 33%, var(--text) 33% 66%, var(--line) 66%); border-radius: 3px; }
+
+/* home */
+.surprise { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font-family: var(--display); font-size: 1.4rem; text-transform: uppercase; letter-spacing: .03em; }
+.surprise small { font-family: var(--body); text-transform: none; font-size: .9rem; opacity: .9; letter-spacing: 0; }
+.group { margin-top: 28px; }
+.group h2 { font-size: 1.15rem; color: var(--gold); margin-bottom: 10px; }
+.cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.cat { text-align: left; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: 2px; min-height: 68px; }
+.cat:hover { border-color: var(--text); }
+.cat b { font-family: var(--display); font-weight: 500; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .02em; }
+.cat span { color: var(--muted); font-size: .85rem; }
+.credit { color: var(--muted); font-size: .85rem; margin-top: 32px; max-width: 60ch; }
+
+/* loading */
+.loading { min-height: 60vh; display: grid; place-content: center; text-align: center; gap: 12px; font-family: var(--display); text-transform: uppercase; font-size: 1.4rem; }
+.spin { width: 36px; height: 36px; margin: 0 auto; border: 4px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+
+/* game */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.back { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; color: var(--muted); }
+.bar .name { font-family: var(--display); text-transform: uppercase; font-size: 1.05rem; letter-spacing: .03em; flex: 1; text-align: center; }
+.prog { font-family: var(--display); color: var(--gold); font-size: 1.1rem; min-width: 64px; text-align: right; }
+.game { display: grid; gap: 16px; }
+@media (min-width: 760px) { .game { grid-template-columns: 1fr 1fr; align-items: start; } .stage { position: sticky; top: 16px; } }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.pic { position: relative; overflow: hidden; background: linear-gradient(135deg, #24396b, #101d3c); }
+.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pic.big { height: clamp(190px, 36vh, 380px); }
+.pic.md { width: 52px; height: 52px; flex: none; border-radius: 8px; }
+.pic.sm { width: 36px; height: 36px; flex: none; border-radius: 6px; }
+.ph { width: 100%; height: 100%; display: grid; place-content: center; padding: 10px; text-align: center; font-family: var(--display); text-transform: uppercase; font-size: 1.6rem; line-height: 1.1; color: var(--muted); }
+.pic.md .ph, .pic.sm .ph { display: none; }
+.itemname { padding: 12px 16px 16px; }
+.itemname small { color: var(--muted); display: block; text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; }
+.itemname h2 { font-size: clamp(1.5rem, 6vw, 2rem); line-height: 1.1; margin-top: 2px; }
+.slots { display: grid; gap: 6px; }
+.slot { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 4px 12px 4px 8px; text-align: left; background: transparent; border: 1px dashed var(--line); border-radius: 10px; }
+.slot .n { width: 34px; flex: none; text-align: center; font-family: var(--display); font-size: 1.5rem; color: var(--muted); }
+.slot .t { flex: 1; min-width: 0; color: var(--muted); }
+.slot .tag { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); }
+.slot.open:hover { border-style: solid; border-color: var(--text); background: var(--panel); }
+.slot.filled { background: var(--panel); border-style: solid; cursor: default; }
+.slot.filled .n { color: var(--gold); }
+.slot.filled .t { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+.hint { color: var(--muted); font-size: .85rem; margin: 10px 0 0; }
+
+/* result */
+.result h2 { font-size: clamp(1.8rem, 7vw, 2.6rem); }
+.rank { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 6px; }
+.rank li { display: flex; align-items: center; gap: 12px; padding: 6px 12px 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.rank .n { width: 34px; text-align: center; font-family: var(--display); font-size: 1.5rem; color: var(--gold); }
+.rank li:first-child { border-color: var(--gold); }
+.rank li:last-child { border-color: var(--accent); }
+.rank .t { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.rank .t small { display: block; color: var(--muted); font-weight: 400; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.btn { padding: 12px 18px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); font-family: var(--display); text-transform: uppercase; letter-spacing: .03em; font-size: 1.05rem; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.msg { color: var(--gold); margin: 10px 0 0; min-height: 1.4em; }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <section id="home">
+    <h1>Blind <span>Ranking</span> Britain</h1>
+    <p class="lede">You get ten British things, one at a time. Put each in a slot from 1 (best) to 10 (worst) before you see the next one. No take-backs.</p>
+    <div class="stripe" aria-hidden="true"></div>
+    <button class="surprise" id="mixBtn" type="button">
+      <span>Surprise me</span><small>Ten random things from every category</small>
+    </button>
+    <div id="groups"></div>
+    <p class="credit">Photos are loaded from Wikipedia and Wikimedia Commons when you start a round. If a photo can't load, you'll see a name card instead and the game still works.</p>
+  </section>
+
+  <section id="loading" class="loading" hidden>
+    <div class="spin" aria-hidden="true"></div>
+    <div>Fetching photos</div>
+  </section>
+
+  <section id="game" hidden>
+    <div class="bar">
+      <button class="back" id="backBtn" type="button">Quit</button>
+      <div class="name" id="catName"></div>
+      <div class="prog" id="prog" aria-live="polite"></div>
+    </div>
+    <div class="game">
+      <div class="stage">
+        <div id="photo"></div>
+        <div class="itemname"><small>Where does this go?</small><h2 id="itemName"></h2></div>
+      </div>
+      <div>
+        <div class="slots" id="slots"></div>
+        <p class="hint">Tap a slot, or press 1 to 9 and 0 for 10. 1 is best, 10 is worst.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="result" class="result" hidden>
+    <h2 id="resTitle">Your ranking</h2>
+    <p class="lede" id="resSub"></p>
+    <ol class="rank" id="rankList"></ol>
+    <div class="actions">
+      <button class="btn primary" id="againBtn" type="button">Play again</button>
+      <button class="btn" id="copyBtn" type="button">Copy result</button>
+      <button class="btn" id="homeBtn" type="button">All categories</button>
+    </div>
+    <p class="msg" id="copyMsg" aria-live="polite"></p>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var GROUPS = ['Places', 'Food & drink', 'Animals & plants', 'Wheels, rails & sails', 'Everyday Britain'];
+
+  // items: "Wikipedia article title::Label shown in game" separated by ";". The label defaults to the title without any (bracketed bit).
+  var CATS = [
+    { group: 0, name: 'Landmarks', items: "Big Ben;Tower Bridge;Stonehenge;Buckingham Palace;Edinburgh Castle;Blackpool Tower;Angel of the North;The Shard;London Eye;Hadrian's Wall;Giant's Causeway;White Cliffs of Dover;Tower of London;Glastonbury Tor;Forth Bridge;Clifton Suspension Bridge;Brighton Palace Pier;Royal Albert Hall;The Kelpies;Roman Baths (Bath);Humber Bridge;The Iron Bridge::Iron Bridge;Menai Suspension Bridge;Trafalgar Square;Piccadilly Circus;Royal Pavilion" },
+    { group: 0, name: 'Cathedrals & Abbeys', items: "St Paul's Cathedral;York Minster;Canterbury Cathedral;Durham Cathedral;Salisbury Cathedral;Westminster Abbey;Liverpool Cathedral;Lincoln Cathedral;Ely Cathedral;Wells Cathedral;Gloucester Cathedral;Winchester Cathedral;Coventry Cathedral;Truro Cathedral;Norwich Cathedral;St Davids Cathedral;Exeter Cathedral;Westminster Cathedral;St Giles' Cathedral;Glasgow Cathedral;Lichfield Cathedral;Chichester Cathedral;King's College Chapel, Cambridge::King's College Chapel;Fountains Abbey;Tintern Abbey;Whitby Abbey;Rosslyn Chapel" },
+    { group: 0, name: 'Castles & Stately Homes', items: "Windsor Castle;Edinburgh Castle;Warwick Castle;Caernarfon Castle;Stirling Castle;Dover Castle;Leeds Castle;Bodiam Castle;Alnwick Castle;Balmoral Castle;Hampton Court Palace;Blenheim Palace;Eilean Donan;Conwy Castle;Harlech Castle;Highclere Castle;Chatsworth House;Castle Howard;Kenilworth Castle;Dunnottar Castle;Corfe Castle;Carrickfergus Castle;Cardiff Castle;Castell Coch;Bamburgh Castle;Durham Castle;Lindisfarne Castle;Palace of Holyroodhouse;Hever Castle;Glamis Castle;Urquhart Castle;Beaumaris Castle;Pembroke Castle;Tintagel Castle;Osborne House;Kensington Palace" },
+    { group: 0, name: 'Scenery', items: "Lake District;Snowdonia;Ben Nevis;Scafell Pike;Isle of Skye;Jurassic Coast;Dartmoor;Peak District;Cairngorms;Loch Ness;Seven Sisters (cliffs)::Seven Sisters;Cheddar Gorge;Malham Cove;Durdle Door;Lulworth Cove;Fingal's Cave;Glen Coe;Brecon Beacons;Yorkshire Dales;New Forest;Isle of Wight;Land's End;Lizard Point;Dunnet Head;Beachy Head;Old Harry Rocks;Loch Lomond;Buttermere;Windermere;Glenfinnan Viaduct" },
+    { group: 0, name: 'Seaside Towns', items: "Blackpool;Brighton;Bournemouth;Scarborough, North Yorkshire::Scarborough;Whitby;Margate;Great Yarmouth;Llandudno;Southend-on-Sea;Torquay;St Ives, Cornwall::St Ives;Weston-super-Mare;Skegness;Cromer;Bognor Regis;Tenby;Aberystwyth;Portrush;Broadstairs;Newquay;Falmouth, Cornwall::Falmouth;Whitley Bay;Clacton-on-Sea;Morecambe;Southport;Padstow;Lyme Regis;Ramsgate" },
+    { group: 0, name: 'UK Cities', items: "London;Edinburgh;Manchester;Liverpool;Glasgow;Cardiff;Belfast;Bristol;Bath, Somerset::Bath;York;Oxford;Cambridge;Newcastle upon Tyne::Newcastle;Birmingham;Leeds;Sheffield;Nottingham;Norwich;Aberdeen;Inverness;Durham, England::Durham;Canterbury;Exeter;Chester;Lincoln, England::Lincoln;Southampton;Plymouth;Swansea;Leicester;Derry::Derry/Londonderry;Stirling;Winchester;Salisbury" },
+    { group: 0, name: 'Days Out', items: "Blackpool Pleasure Beach;Alton Towers;Legoland Windsor Resort::Legoland Windsor;Thorpe Park;Chessington World of Adventures;Eden Project;Longleat;Madame Tussauds London::Madame Tussauds;ZSL London Zoo::London Zoo;Natural History Museum, London::Natural History Museum;Science Museum, London::Science Museum;British Museum;Royal Botanic Gardens, Kew::Kew Gardens;Beamish Museum;Portmeirion;Warwick Castle;Cadbury World;Tate Modern;Victoria and Albert Museum::V&A;Bletchley Park;Drayton Manor Park;Flamingo Land Resort::Flamingo Land;National Railway Museum;Jorvik Viking Centre;Edinburgh Zoo;Windsor Great Park;Whipsnade Zoo" },
+    { group: 0, name: 'Football Grounds', items: "Wembley Stadium;Old Trafford;Anfield;Emirates Stadium;Stamford Bridge (stadium)::Stamford Bridge;City of Manchester Stadium::Etihad Stadium;Villa Park;St James' Park;Goodison Park;Celtic Park;Ibrox Stadium;Hampden Park;Principality Stadium;Tottenham Hotspur Stadium;London Stadium;Craven Cottage;Elland Road;Hillsborough Stadium;Selhurst Park;Molineux Stadium;The Hawthorns;Stadium of Light;City Ground;Turf Moor;Carrow Road;Portman Road;Ewood Park;Bramall Lane;St Mary's Stadium;Vicarage Road;Fratton Park;Ashton Gate Stadium;Pittodrie Stadium;Tynecastle Park;Easter Road" },
+    { group: 0, name: 'Sporting Venues', items: "Lord's;The Oval;Silverstone Circuit;Old Course at St Andrews::St Andrews Old Course;Aintree Racecourse;Ascot Racecourse;Twickenham Stadium;Murrayfield Stadium;All England Lawn Tennis and Croquet Club::Wimbledon;Cheltenham Racecourse;Brands Hatch;Headingley Stadium;Edgbaston Cricket Ground;Old Trafford Cricket Ground;Trent Bridge;Royal Birkdale Golf Club;Goodwood Circuit;Donington Park;Epsom Downs Racecourse;Crucible Theatre;Royal Portrush Golf Club;Hampden Park" },
+
+    { group: 1, name: 'Savoury Dishes', items: "Fish and chips;Full breakfast::Full English breakfast;Sunday roast;Yorkshire pudding;Shepherd's pie;Cottage pie;Bangers and mash;Scotch egg;Cornish pasty;Pork pie;Haggis;Chicken tikka masala;Beans on toast;Black pudding;Ploughman's lunch;Bubble and squeak;Toad in the hole;Welsh rarebit;Cullen skink;Lancashire hotpot;Kedgeree;Pie and mash;Chip butty;Bacon sandwich;Sausage roll;Mushy peas;Pickled egg;Cawl;Stovies" },
+    { group: 1, name: 'Puddings & Bakes', items: "Sticky toffee pudding;Trifle;Spotted dick;Bakewell tart;Victoria sponge cake::Victoria sponge;Scone;Crumpet;Cream tea;Jam roly-poly;Banoffee pie;Treacle tart;Eton mess;Apple crumble;Rice pudding;Bread and butter pudding;Christmas pudding;Mince pie;Lemon drizzle cake;Eccles cake;Chelsea bun;Bara brith;Welsh cake;Battenberg cake;Dundee cake;Cranachan;Custard tart;Flapjack;Hot cross bun;Simnel cake;Banbury cake;Parkin" },
+    { group: 1, name: 'Biscuits', items: "Digestive biscuit;Jaffa Cake;Custard cream;Bourbon biscuit;Rich tea;Shortbread;Ginger nut;Garibaldi biscuit;Jammie Dodger;Fig roll;Penguin (biscuit);Wagon Wheel (biscuit);Hobnob;Oatcake;Viennese whirl;Party Ring;Nice biscuit;Lincoln biscuit;Abernethy biscuit;Bath Oliver;Tunnock's Caramel Wafer;Tunnock's Teacake;Brandy snap;Malted milk biscuit::Malted Milk" },
+    { group: 1, name: 'Sweets & Snacks', items: "Jelly Babies;Liquorice allsorts;Wine gum;Fruit Pastilles;Cadbury Dairy Milk::Dairy Milk;Curly Wurly;Crunchie;Cadbury Flake::Flake;Wispa;Terry's Chocolate Orange;Quality Street;Maltesers;Freddo;Humbug (sweet)::Humbug;Monster Munch;Quavers;Wotsits;Hula Hoops;Walkers Crisps::Walkers crisps;Fudge;Toffee;Rock (confectionery)::Seaside rock;Sherbet fountain;Pear drop;Bonfire toffee::Treacle toffee" },
+    { group: 1, name: 'Drinks & Pantry', items: "Marmite;Bovril;Branston Pickle::Branston;HP Sauce;Irn-Bru;Vimto;Ribena;Lucozade;Tizer;Pimm's;Ginger beer;Dandelion and burdock;Horlicks;Ovaltine;Marmalade;Clotted cream;Piccalilli;Worcestershire sauce;Mint sauce;Gin and tonic;Cider;Cask ale::Real ale;Guinness;Shandy;Mulled wine;Scotch whisky" },
+    { group: 1, name: 'Cheese', items: "Cheddar cheese::Cheddar;Stilton cheese::Stilton;Wensleydale cheese::Wensleydale;Red Leicester;Double Gloucester;Caerphilly cheese::Caerphilly;Cheshire cheese::Cheshire;Lancashire cheese::Lancashire;Cornish Yarg;Stinking Bishop;Shropshire Blue;Derby cheese::Derby;Sage Derby;Lincolnshire Poacher;Dorset Blue Vinney;Single Gloucester;Swaledale cheese::Swaledale;Cornish Blue;Wensleydale with cranberries;Cotherstone cheese::Cotherstone;Y Fenni;Applewood (cheese)::Applewood" },
+
+    { group: 2, name: 'Wildlife', items: "European badger::Badger;Red fox;European hedgehog::Hedgehog;Red squirrel;Red deer;Atlantic puffin::Puffin;Barn owl;Eurasian otter::Otter;Adder;Grey seal;Red kite;Golden eagle;Mute swan;Common kingfisher::Kingfisher;Common frog;Mountain hare;Roe deer;Pine marten;Common seal;Eurasian beaver::Beaver;Scottish wildcat;Red grouse;Basking shark;Hazel dormouse::Dormouse;Stoat;Eurasian harvest mouse::Harvest mouse;Atlantic salmon;Grass snake;Fallow deer;Peregrine falcon;Osprey;Northern gannet::Gannet;Bottlenose dolphin" },
+    { group: 2, name: 'Garden Birds', items: "European robin::Robin;Eurasian blue tit::Blue tit;Great tit;Common blackbird::Blackbird;Eurasian wren::Wren;House sparrow;Common chaffinch::Chaffinch;European goldfinch::Goldfinch;Common starling::Starling;Common wood pigeon::Wood pigeon;Eurasian magpie::Magpie;Eurasian jay::Jay;Long-tailed tit;Eurasian bullfinch::Bullfinch;Song thrush;Dunnock;Great spotted woodpecker;Eurasian nuthatch::Nuthatch;Eurasian collared dove::Collared dove;Coal tit;European greenfinch::Greenfinch;Eurasian siskin::Siskin;Eurasian treecreeper::Treecreeper;Eurasian blackcap::Blackcap;Common chiffchaff::Chiffchaff" },
+    { group: 2, name: 'Dog Breeds', items: "Labrador Retriever;Border Collie;English Cocker Spaniel::Cocker Spaniel;Jack Russell Terrier;Bulldog::English Bulldog;Pembroke Welsh Corgi::Corgi;Yorkshire Terrier;Staffordshire Bull Terrier::Staffie;English Springer Spaniel::Springer Spaniel;Scottish Terrier;West Highland White Terrier::Westie;Border Terrier;Greyhound;Whippet;Old English Sheepdog;Airedale Terrier;Irish Setter;Cavalier King Charles Spaniel;Golden Retriever;Beagle;Bull Terrier;Lakeland Terrier;English Setter;Basset Hound;Rough Collie;Shetland Sheepdog;Welsh Springer Spaniel;Bearded Collie" },
+    { group: 2, name: 'Farm Animals', items: "Highland cattle;Shetland pony;Herdwick;Jacob sheep;Tamworth pig::Tamworth;Gloucestershire Old Spots;Clydesdale horse;Shire horse;Exmoor pony;Dartmoor pony;Suffolk Punch;Aberdeen Angus;Hereford cattle::Hereford;Dexter cattle::Dexter;Welsh Black cattle::Welsh Black;Suffolk sheep;Texel sheep::Texel;Cheviot sheep::Cheviot;Large Black pig::Large Black;British Saddleback;Longhorn cattle::Longhorn;Belted Galloway;Swaledale sheep::Swaledale;Soay sheep::Soay;Lincoln Red;Welsh Mountain pony" },
+    { group: 2, name: 'Plants & Trees', items: "Daffodil;Hyacinthoides non-scripta::Bluebell;Primula vulgaris::Primrose;Foxglove;Snowdrop;Sweet pea;Lavender;Papaver rhoeas::Poppy;Anthriscus sylvestris::Cow parsley;Bellis perennis::Daisy;Buttercup;Calluna vulgaris::Heather;Ulex europaeus::Gorse;Hawthorn;Ilex aquifolium::Holly;Quercus robur::English oak;Betula pendula::Silver birch;Aesculus hippocastanum::Horse chestnut;Scots pine;Sorbus aucuparia::Rowan;Stinging nettle;Dandelion;Allium ursinum::Wild garlic;Sambucus nigra::Elder;Honeysuckle;Rosa canina::Dog rose;Yew;Common ivy" },
+
+    { group: 3, name: 'Cars', items: "Mini;Land Rover Defender;Aston Martin DB5;Jaguar E-Type;Morris Minor;Lotus Elise;McLaren F1;Reliant Robin;Bentley Continental GT;Range Rover;Triumph Spitfire;MG MGB;Austin Seven;Caterham 7;Rolls-Royce Silver Ghost;Austin FX4::London black cab;Ford Cortina;Mini Moke;Jensen Interceptor;TVR Griffith;Morgan Plus 4;Lotus Esprit;Rover SD1;Austin Allegro;Hillman Imp;Sinclair C5;Ford Capri;Vauxhall Astra;Land Rover Series I::Land Rover Series;Triumph TR6" },
+    { group: 3, name: 'Planes, Trains & Ships', items: "Flying Scotsman (locomotive)::Flying Scotsman;LNER Class A4 4468 Mallard::Mallard;British Rail Class 43 (HST)::Intercity 125;Eurostar;Concorde;Supermarine Spitfire::Spitfire;Hawker Hurricane;Avro Lancaster;BAE Systems Hawk::Hawk (Red Arrows);Hawker Siddeley Harrier::Harrier Jump Jet;Avro Vulcan;RMS Queen Mary 2::Queen Mary 2;Cutty Sark;HMS Victory;Mary Rose;SS Great Britain;RMS Titanic;AEC Routemaster::Routemaster;Brompton Bicycle::Brompton;Penny-farthing;Hovercraft;Blackpool Tramway::Blackpool tram;London Underground;Glasgow Subway;Docklands Light Railway;Thames sailing barge::Thames barge;Isle of Wight Steam Railway::Steam railway;British Rail Class 08;Mini Cooper" },
+
+    { group: 4, name: 'Everyday Icons', items: "Red telephone box::Red phone box;Pillar box::Pillar box;Flag of the United Kingdom::Union Jack;Penny Black;Wellington boot::Wellies;Bowler hat;Umbrella::Brolly;Hot-water bottle;Public house::The local pub;Fish and chip shop::Chippy;Allotment (gardening)::Allotment;Double-decker bus;Darts::Dartboard;Snooker;Cricket ball;Teapot;Electric kettle::Kettle;Tea;Cup and saucer::Cup and saucer;Conker;Maypole;Fruit machine;Pint (unit)::Pint glass;Rugby ball;Tweed (cloth)::Tweed;Barbour (company)::Wax jacket;Garden gnome;Bagpipes;Cricket pavilion::Cricket pavilion;Village green" }
+  ];
+
+  // Parse item strings into objects.
+  CATS.forEach(function (c, i) {
+    c.id = i;
+    c.list = c.items.split(';').map(function (s) { return s.trim(); }).filter(Boolean).map(function (s) {
+      var parts = s.split('::');
+      var title = parts[0].trim();
+      var label = (parts[1] || title.replace(/\s*\(.*\)$/, '')).trim();
+      return { title: title, label: label, cat: c.name };
+    });
+  });
+
+  var ALL = [].concat.apply([], CATS.map(function (c) { return c.list; }));
+
+  // ---------- helpers ----------
+  function $(s) { return document.querySelector(s); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function show(id) {
+    ['home', 'loading', 'game', 'result'].forEach(function (s) { $('#' + s).hidden = (s !== id); });
+    window.scrollTo(0, 0);
+    current = id;
+  }
+  var current = 'home';
+
+  // ---------- Wikipedia photos ----------
+  var imgCache = {};
+  function fetchThumbs(titles) {
+    var url = 'https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=800&titles=' +
+      encodeURIComponent(titles.join('|'));
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 8000);
+    return fetch(url, ctrl ? { signal: ctrl.signal } : undefined)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        clearTimeout(timer);
+        var q = j.query || {};
+        var norm = {}, red = {}, byTitle = {};
+        (q.normalized || []).forEach(function (n) { norm[n.from] = n.to; });
+        (q.redirects || []).forEach(function (n) { red[n.from] = n.to; });
+        Object.keys(q.pages || {}).forEach(function (k) {
+          var p = q.pages[k];
+          if (p && p.thumbnail) byTitle[p.title] = p.thumbnail.source;
+        });
+        var out = {};
+        titles.forEach(function (t) {
+          var n = norm[t] || t;
+          var r = red[n] || n;
+          out[t] = byTitle[r] || null;
+        });
+        return out;
+      })
+      .catch(function () { clearTimeout(timer); return null; });
+  }
+  function loadImages(items) {
+    var need = items.map(function (i) { return i.title; }).filter(function (t) { return !(t in imgCache); });
+    var p = need.length ? fetchThumbs(need) : Promise.resolve({});
+    return p.then(function (res) {
+      if (res) need.forEach(function (t) { imgCache[t] = res[t]; });
+      items.forEach(function (i) { i.img = imgCache[i.title] || null; });
+    });
+  }
+
+  function pic(item, size) {
+    var box = el('div', 'pic ' + size);
+    function placeholder() {
+      box.textContent = '';
+      var p = el('div', 'ph');
+      p.appendChild(el('span', null, item.label));
+      box.appendChild(p);
+    }
+    if (item.img) {
+      var im = new Image();
+      im.alt = item.label;
+      im.decoding = 'async';
+      im.referrerPolicy = 'no-referrer';
+      im.onerror = placeholder;
+      im.src = item.img;
+      box.appendChild(im);
+    } else {
+      placeholder();
+    }
+    return box;
+  }
+
+  // ---------- home ----------
+  function buildHome() {
+    var root = $('#groups');
+    GROUPS.forEach(function (g, gi) {
+      var cats = CATS.filter(function (c) { return c.group === gi; });
+      var sec = el('div', 'group');
+      sec.appendChild(el('h2', null, g));
+      var grid = el('div', 'cats');
+      cats.forEach(function (c) {
+        var b = el('button', 'cat');
+        b.type = 'button';
+        b.appendChild(el('b', null, c.name));
+        b.appendChild(el('span', null, c.list.length + ' things'));
+        b.addEventListener('click', function () { start(c); });
+        grid.appendChild(b);
+      });
+      sec.appendChild(grid);
+      root.appendChild(sec);
+    });
+    $('#mixBtn').addEventListener('click', function () { start(null); });
+  }
+
+  // ---------- game ----------
+  var state = null;
+
+  function start(cat) {
+    show('loading');
+    var pool = cat ? shuffle(cat.list).slice(0, 16) : shuffle(ALL).slice(0, 18);
+    loadImages(pool).then(function () {
+      var withImg = pool.filter(function (i) { return i.img; });
+      var without = pool.filter(function (i) { return !i.img; });
+      var picked = shuffle(withImg.concat(without).slice(0, 10)).map(function (i) {
+        return { title: i.title, label: i.label, cat: i.cat, img: i.img };
+      });
+      picked.forEach(function (i) { if (i.img) { var pre = new Image(); pre.src = i.img; } });
+      state = { cat: cat, name: cat ? cat.name : 'Surprise mix', items: picked, i: 0, slots: new Array(10).fill(null) };
+      buildSlots();
+      renderGame();
+      show('game');
+    });
+  }
+
+  function buildSlots() {
+    var box = $('#slots');
+    box.textContent = '';
+    for (var n = 0; n < 10; n++) {
+      (function (n) {
+        var b = el('button', 'slot open');
+        b.type = 'button';
+        b.id = 'slot' + n;
+        b.appendChild(el('span', 'n', String(n + 1)));
+        var t = el('span', 't');
+        b.appendChild(t);
+        b.addEventListener('click', function () { place(n); });
+        box.appendChild(b);
+      })(n);
+    }
+  }
+
+  function renderGame() {
+    var s = state;
+    var item = s.items[s.i];
+    $('#catName').textContent = s.name;
+    $('#prog').textContent = (s.i + 1) + ' of 10';
+    var photo = $('#photo');
+    photo.textContent = '';
+    photo.appendChild(pic(item, 'big'));
+    $('#itemName').textContent = item.label;
+    for (var n = 0; n < 10; n++) {
+      var b = $('#slot' + n);
+      var t = b.querySelector('.t');
+      var old = b.querySelector('.pic');
+      if (old) old.remove();
+      t.textContent = '';
+      var it = s.slots[n];
+      if (it) {
+        b.className = 'slot filled';
+        b.disabled = true;
+        b.insertBefore(pic(it, 'sm'), t);
+        t.textContent = it.label;
+      } else {
+        b.className = 'slot open';
+        b.disabled = false;
+        if (n === 0) { var tag = el('span', 'tag', 'Best'); t.appendChild(tag); }
+        else if (n === 9) { var tag2 = el('span', 'tag', 'Worst'); t.appendChild(tag2); }
+        else t.textContent = '';
+      }
+    }
+  }
+
+  function place(n) {
+    if (!state || state.slots[n]) return;
+    state.slots[n] = state.items[state.i];
+    state.i++;
+    if (state.i >= 10) showResult();
+    else renderGame();
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (current !== 'game' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^[0-9]$/.test(e.key)) place(e.key === '0' ? 9 : Number(e.key) - 1);
+  });
+
+  // ---------- result ----------
+  function resultText() {
+    var lines = ['Blind Ranking Britain: ' + state.name];
+    state.slots.forEach(function (it, i) { lines.push((i + 1) + '. ' + it.label); });
+    return lines.join('\n');
+  }
+
+  function showResult() {
+    var s = state;
+    $('#resTitle').textContent = s.name;
+    $('#resSub').textContent = 'You put ' + s.slots[0].label + ' first and ' + s.slots[9].label + ' last.';
+    var list = $('#rankList');
+    list.textContent = '';
+    s.slots.forEach(function (it, i) {
+      var li = el('li');
+      li.appendChild(el('span', 'n', String(i + 1)));
+      li.appendChild(pic(it, 'md'));
+      var t = el('span', 't', it.label);
+      if (s.cat == null) t.appendChild(el('small', null, it.cat));
+      li.appendChild(t);
+      list.appendChild(li);
+    });
+    $('#copyMsg').textContent = '';
+    show('result');
+  }
+
+  function copyText(text) {
+    var done = function () { return true; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(done, function () { return legacyCopy(text); });
+    }
+    return Promise.resolve(legacyCopy(text));
+  }
+  function legacyCopy(text) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  $('#copyBtn').addEventListener('click', function () {
+    copyText(resultText()).then(function (ok) {
+      $('#copyMsg').textContent = ok ? 'Copied. Paste it into a message to compare with friends.' : 'Copy was blocked here. Select the list above instead.';
+    });
+  });
+  $('#againBtn').addEventListener('click', function () { start(state.cat); });
+  $('#homeBtn').addEventListener('click', function () { show('home'); });
+  $('#backBtn').addEventListener('click', function () { show('home'); });
+
+  buildHome();
+})();
+</script>
+</body>
+</html>
