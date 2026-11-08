@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blind Rank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout idea: region chips + category grid (home) -> one photo card beside ten numbered slots (game) -> ranked list (result). Deep teal ground, saffron accent, one colour per world region. */
+  --bg: #0a1c26;
+  --panel: #11303d;
+  --line: #24495a;
+  --text: #f1f7f8;
+  --muted: #9fbac4;
+  --accent: #ff8a3d;
+  --ink: #0a1c26;
+  --gold: #ffd166;
+  --display: 'Oswald', 'Arial Narrow', Impact, sans-serif;
+  --body: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--body); font-size: 17px; line-height: 1.4; }
+body { min-height: 100%; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; }
+h1, h2, h3 { font-family: var(--display); text-transform: uppercase; letter-spacing: .02em; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2.6rem, 11vw, 4.4rem); line-height: 1; font-weight: 700; }
+h1 span { color: var(--accent); }
+.lede { color: var(--muted); max-width: 54ch; margin: 12px 0 0; }
+.stripe { height: 6px; margin: 20px 0 22px; border-radius: 3px; }
+
+/* home */
+.surprise { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; border: 0; border-radius: 12px; background: var(--accent); color: var(--ink); text-align: left; }
+.surprise b { font-family: var(--display); font-weight: 700; font-size: 1.5rem; text-transform: uppercase; letter-spacing: .03em; }
+.surprise small { font-size: .9rem; text-align: right; font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px; background: transparent; font-weight: 600; font-size: .95rem; }
+.chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text); }
+.chip[aria-pressed="true"] { background: var(--text); color: var(--ink); border-color: var(--text); }
+.group { margin-top: 26px; }
+.group h2 { font-size: 1.1rem; color: var(--gold); margin-bottom: 10px; }
+.cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.cat { text-align: left; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; display: flex; flex-direction: column; gap: 2px; min-height: 68px; }
+.cat:hover { border-color: var(--text); }
+.cat b { font-family: var(--display); font-weight: 500; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .02em; }
+.cat span { color: var(--muted); font-size: .85rem; }
+.credit { color: var(--muted); font-size: .85rem; margin-top: 32px; max-width: 60ch; }
+
+/* loading */
+.loading { min-height: 60vh; display: grid; place-content: center; text-align: center; gap: 12px; font-family: var(--display); text-transform: uppercase; font-size: 1.4rem; }
+.spin { width: 36px; height: 36px; margin: 0 auto; border: 4px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+
+/* game */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.back { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; color: var(--muted); }
+.bar .name { font-family: var(--display); text-transform: uppercase; font-size: 1.05rem; letter-spacing: .03em; flex: 1; text-align: center; }
+.prog { font-family: var(--display); color: var(--gold); font-size: 1.1rem; min-width: 64px; text-align: right; }
+.game { display: grid; gap: 16px; }
+@media (min-width: 760px) { .game { grid-template-columns: 1fr 1fr; align-items: start; } .stage { position: sticky; top: 16px; } }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.pic { position: relative; overflow: hidden; background: linear-gradient(135deg, #1b4658, #0d2430); }
+.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pic.big { height: clamp(190px, 36vh, 380px); }
+.pic.md { width: 52px; height: 52px; flex: none; border-radius: 8px; }
+.pic.sm { width: 36px; height: 36px; flex: none; border-radius: 6px; }
+.ph { width: 100%; height: 100%; display: grid; place-content: center; padding: 10px; text-align: center; font-family: var(--display); text-transform: uppercase; font-size: 1.6rem; line-height: 1.1; color: var(--muted); }
+.pic.md .ph, .pic.sm .ph { display: none; }
+.itemname { padding: 12px 16px 16px; }
+.itemname small { color: var(--muted); display: block; font-size: .95rem; min-height: 1.4em; }
+.itemname h2 { font-size: clamp(1.5rem, 6vw, 2rem); line-height: 1.1; margin-top: 2px; }
+.slots { display: grid; gap: 6px; }
+.slot { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 4px 12px 4px 8px; text-align: left; background: transparent; border: 1px dashed var(--line); border-radius: 10px; }
+.slot .n { width: 34px; flex: none; text-align: center; font-family: var(--display); font-size: 1.5rem; color: var(--muted); }
+.slot .t { flex: 1; min-width: 0; color: var(--muted); }
+.slot .tag { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); }
+.slot.open:hover { border-style: solid; border-color: var(--text); background: var(--panel); }
+.slot.filled { background: var(--panel); border-style: solid; cursor: default; }
+.slot.filled .n { color: var(--gold); }
+.slot.filled .t { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+.hint { color: var(--muted); font-size: .85rem; margin: 10px 0 0; }
+
+/* result */
+.result h2 { font-size: clamp(1.8rem, 7vw, 2.6rem); }
+.rank { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 6px; }
+.rank li { display: flex; align-items: center; gap: 12px; padding: 6px 12px 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.rank .n { width: 34px; text-align: center; font-family: var(--display); font-size: 1.5rem; color: var(--gold); }
+.rank li:first-child { border-color: var(--gold); }
+.rank li:last-child { border-color: var(--accent); }
+.rank .t { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.rank .t small { display: block; color: var(--muted); font-weight: 400; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.btn { padding: 12px 18px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); font-family: var(--display); text-transform: uppercase; letter-spacing: .03em; font-size: 1.05rem; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--ink); }
+.msg { color: var(--gold); margin: 10px 0 0; min-height: 1.4em; }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <section id="home">
+    <h1>Blind <span>Rank</span></h1>
+    <p class="lede">Ten things from around the world, one at a time. Put each in a slot from 1 (best) to 10 (worst) before you see the next one. No take-backs.</p>
+    <div class="stripe" id="stripe" aria-hidden="true"></div>
+    <button class="surprise" id="mixBtn" type="button">
+      <b>Surprise me</b><small id="mixSub"></small>
+    </button>
+    <div class="chips" id="chips" role="group" aria-label="Region"></div>
+    <div id="groups"></div>
+    <p class="credit">Photos are loaded from Wikipedia and Wikimedia Commons when you start a round. If a photo can't load, you'll see a name card instead and the game still works.</p>
+  </section>
+
+  <section id="loading" class="loading" hidden>
+    <div class="spin" aria-hidden="true"></div>
+    <div>Fetching photos</div>
+  </section>
+
+  <section id="game" hidden>
+    <div class="bar">
+      <button class="back" id="backBtn" type="button">Quit</button>
+      <div class="name" id="catName"></div>
+      <div class="prog" id="prog" aria-live="polite"></div>
+    </div>
+    <div class="game">
+      <div class="stage">
+        <div id="photo"></div>
+        <div class="itemname"><small id="itemMeta"></small><h2 id="itemName"></h2></div>
+      </div>
+      <div>
+        <div class="slots" id="slots"></div>
+        <p class="hint">Tap a slot, or press 1 to 9 and 0 for 10. 1 is best, 10 is worst.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="result" class="result" hidden>
+    <h2 id="resTitle">Your ranking</h2>
+    <p class="lede" id="resSub"></p>
+    <ol class="rank" id="rankList"></ol>
+    <div class="actions">
+      <button class="btn primary" id="againBtn" type="button">Play again</button>
+      <button class="btn" id="copyBtn" type="button">Copy result</button>
+      <button class="btn" id="homeBtn" type="button">All categories</button>
+    </div>
+    <p class="msg" id="copyMsg" aria-live="polite"></p>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var REGIONS = [
+    { n: 'Britain', c: '#7aa2ff' },
+    { n: 'Europe', c: '#ffd166' },
+    { n: 'Asia', c: '#ff6b8b' },
+    { n: 'Americas', c: '#4ee3a0' },
+    { n: 'Africa & Middle East', c: '#ff9f43' },
+    { n: 'Oceania', c: '#38d0e8' },
+    { n: 'World', c: '#c3a6ff' }
+  ];
+  var GROUPS = ['Places', 'Food and drink', 'Animals and nature', 'Wheels, rails and sails', 'Everyday life'];
+
+  // Items are separated by ";". Each is "Wikipedia article title::Label shown in game::Country code". Label and code are optional.
+  // A missing label defaults to the title without any (bracketed bit); a missing code falls back to the category's code.
+  var CATS = [];
+  function add(r, g, name, cc, items, trim) { CATS.push({ r: r, g: g, name: name, cc: cc, trim: trim, items: items }); }
+
+  /* ---------- Britain ---------- */
+  add(0, 0, 'Landmarks', 'GB', "Big Ben;Tower Bridge;Stonehenge;Buckingham Palace;Edinburgh Castle;Blackpool Tower;Angel of the North;The Shard;London Eye;Hadrian's Wall;Giant's Causeway;White Cliffs of Dover;Tower of London;Glastonbury Tor;Forth Bridge;Clifton Suspension Bridge;Brighton Palace Pier;Royal Albert Hall;The Kelpies;Roman Baths (Bath);Humber Bridge;The Iron Bridge::Iron Bridge;Menai Suspension Bridge;Trafalgar Square;Piccadilly Circus;Royal Pavilion");
+  add(0, 0, 'Cathedrals and Abbeys', 'GB', "St Paul's Cathedral;York Minster;Canterbury Cathedral;Durham Cathedral;Salisbury Cathedral;Westminster Abbey;Liverpool Cathedral;Lincoln Cathedral;Ely Cathedral;Wells Cathedral;Gloucester Cathedral;Winchester Cathedral;Coventry Cathedral;Truro Cathedral;Norwich Cathedral;St Davids Cathedral;Exeter Cathedral;Westminster Cathedral;St Giles' Cathedral;Glasgow Cathedral;Lichfield Cathedral;Chichester Cathedral;King's College Chapel, Cambridge::King's College Chapel;Fountains Abbey;Tintern Abbey;Whitby Abbey;Rosslyn Chapel");
+  add(0, 0, 'Castles and Stately Homes', 'GB', "Windsor Castle;Edinburgh Castle;Warwick Castle;Caernarfon Castle;Stirling Castle;Dover Castle;Leeds Castle;Bodiam Castle;Alnwick Castle;Balmoral Castle;Hampton Court Palace;Blenheim Palace;Eilean Donan;Conwy Castle;Harlech Castle;Highclere Castle;Chatsworth House;Castle Howard;Kenilworth Castle;Dunnottar Castle;Corfe Castle;Carrickfergus Castle;Cardiff Castle;Castell Coch;Bamburgh Castle;Durham Castle;Lindisfarne Castle;Palace of Holyroodhouse;Hever Castle;Glamis Castle;Urquhart Castle;Beaumaris Castle;Pembroke Castle;Tintagel Castle;Osborne House;Kensington Palace");
+  add(0, 0, 'Scenery', 'GB', "Lake District;Snowdonia;Ben Nevis;Scafell Pike;Isle of Skye;Jurassic Coast;Dartmoor;Peak District;Cairngorms;Loch Ness;Seven Sisters (cliffs)::Seven Sisters;Cheddar Gorge;Malham Cove;Durdle Door;Lulworth Cove;Fingal's Cave;Glen Coe;Brecon Beacons;Yorkshire Dales;New Forest;Isle of Wight;Land's End;Lizard Point;Dunnet Head;Beachy Head;Old Harry Rocks;Loch Lomond;Buttermere;Windermere;Glenfinnan Viaduct");
+  add(0, 0, 'Seaside Towns', 'GB', "Blackpool;Brighton;Bournemouth;Scarborough, North Yorkshire::Scarborough;Whitby;Margate;Great Yarmouth;Llandudno;Southend-on-Sea;Torquay;St Ives, Cornwall::St Ives;Weston-super-Mare;Skegness;Cromer;Bognor Regis;Tenby;Aberystwyth;Portrush;Broadstairs;Newquay;Falmouth, Cornwall::Falmouth;Whitley Bay;Clacton-on-Sea;Morecambe;Southport;Padstow;Lyme Regis;Ramsgate");
+  add(0, 0, 'UK Cities', 'GB', "London;Edinburgh;Manchester;Liverpool;Glasgow;Cardiff;Belfast;Bristol;Bath, Somerset::Bath;York;Oxford;Cambridge;Newcastle upon Tyne::Newcastle;Birmingham;Leeds;Sheffield;Nottingham;Norwich;Aberdeen;Inverness;Durham, England::Durham;Canterbury;Exeter;Chester;Lincoln, England::Lincoln;Southampton;Plymouth;Swansea;Leicester;Derry::Derry/Londonderry;Stirling;Winchester;Salisbury");
+  add(0, 0, 'Days Out', 'GB', "Blackpool Pleasure Beach;Alton Towers;Legoland Windsor Resort::Legoland Windsor;Thorpe Park;Chessington World of Adventures;Eden Project;Longleat;Madame Tussauds London::Madame Tussauds;ZSL London Zoo::London Zoo;Natural History Museum, London::Natural History Museum;Science Museum, London::Science Museum;British Museum;Royal Botanic Gardens, Kew::Kew Gardens;Beamish Museum;Portmeirion;Warwick Castle;Cadbury World;Tate Modern;Victoria and Albert Museum::V&A;Bletchley Park;Drayton Manor Park;Flamingo Land Resort::Flamingo Land;National Railway Museum;Jorvik Viking Centre;Edinburgh Zoo;Windsor Great Park;Whipsnade Zoo");
+  add(0, 0, 'Football Grounds', 'GB', "Wembley Stadium;Old Trafford;Anfield;Emirates Stadium;Stamford Bridge (stadium)::Stamford Bridge;City of Manchester Stadium::Etihad Stadium;Villa Park;St James' Park;Goodison Park;Celtic Park;Ibrox Stadium;Hampden Park;Principality Stadium;Tottenham Hotspur Stadium;London Stadium;Craven Cottage;Elland Road;Hillsborough Stadium;Selhurst Park;Molineux Stadium;The Hawthorns;Stadium of Light;City Ground;Turf Moor;Carrow Road;Portman Road;Ewood Park;Bramall Lane;St Mary's Stadium;Vicarage Road;Fratton Park;Ashton Gate Stadium;Pittodrie Stadium;Tynecastle Park;Easter Road");
+  add(0, 0, 'Sporting Venues', 'GB', "Lord's;The Oval;Silverstone Circuit;Old Course at St Andrews::St Andrews Old Course;Aintree Racecourse;Ascot Racecourse;Twickenham Stadium;Murrayfield Stadium;All England Lawn Tennis and Croquet Club::Wimbledon;Cheltenham Racecourse;Brands Hatch;Headingley Stadium;Edgbaston Cricket Ground;Old Trafford Cricket Ground;Trent Bridge;Royal Birkdale Golf Club;Goodwood Circuit;Donington Park;Epsom Downs Racecourse;Crucible Theatre;Royal Portrush Golf Club;Hampden Park");
+
+  add(0, 1, 'Savoury Dishes', 'GB', "Fish and chips;Full breakfast::Full English breakfast;Sunday roast;Yorkshire pudding;Shepherd's pie;Cottage pie;Bangers and mash;Scotch egg;Cornish pasty;Pork pie;Haggis;Chicken tikka masala;Beans on toast;Black pudding;Ploughman's lunch;Bubble and squeak;Toad in the hole;Welsh rarebit;Cullen skink;Lancashire hotpot;Kedgeree;Pie and mash;Chip butty;Bacon sandwich;Sausage roll;Mushy peas;Pickled egg;Cawl;Stovies");
+  add(0, 1, 'Puddings and Bakes', 'GB', "Sticky toffee pudding;Trifle;Spotted dick;Bakewell tart;Victoria sponge cake::Victoria sponge;Scone;Crumpet;Cream tea;Jam roly-poly;Banoffee pie;Treacle tart;Eton mess;Apple crumble;Rice pudding;Bread and butter pudding;Christmas pudding;Mince pie;Lemon drizzle cake;Eccles cake;Chelsea bun;Bara brith;Welsh cake;Battenberg cake;Dundee cake;Cranachan;Custard tart;Flapjack;Hot cross bun;Simnel cake;Banbury cake;Parkin");
+  add(0, 1, 'Biscuits', 'GB', "Digestive biscuit;Jaffa Cake;Custard cream;Bourbon biscuit;Rich tea;Shortbread;Ginger nut;Garibaldi biscuit;Jammie Dodger;Fig roll;Penguin (biscuit);Wagon Wheel (biscuit);Hobnob;Oatcake;Viennese whirl;Party Ring;Nice biscuit;Lincoln biscuit;Abernethy biscuit;Bath Oliver;Tunnock's Caramel Wafer;Tunnock's Teacake;Brandy snap;Malted milk biscuit::Malted Milk");
+  add(0, 1, 'Sweets and Snacks', 'GB', "Jelly Babies;Liquorice allsorts;Wine gum;Fruit Pastilles;Cadbury Dairy Milk::Dairy Milk;Curly Wurly;Crunchie;Cadbury Flake::Flake;Wispa;Terry's Chocolate Orange;Quality Street;Maltesers;Freddo;Humbug (sweet)::Humbug;Monster Munch;Quavers;Wotsits;Hula Hoops;Walkers Crisps::Walkers crisps;Fudge;Toffee;Rock (confectionery)::Seaside rock;Sherbet fountain;Pear drop;Bonfire toffee::Treacle toffee");
+  add(0, 1, 'Drinks and Pantry', 'GB', "Marmite;Bovril;Branston Pickle::Branston;HP Sauce;Irn-Bru;Vimto;Ribena;Lucozade;Tizer;Pimm's;Ginger beer;Dandelion and burdock;Horlicks;Ovaltine;Marmalade;Clotted cream;Piccalilli;Worcestershire sauce;Mint sauce;Gin and tonic;Cider;Cask ale::Real ale;Guinness::::IE;Shandy;Mulled wine;Scotch whisky");
+  add(0, 1, 'British Cheese', 'GB', "Cheddar cheese::Cheddar;Stilton cheese::Stilton;Wensleydale cheese::Wensleydale;Red Leicester;Double Gloucester;Caerphilly cheese::Caerphilly;Cheshire cheese::Cheshire;Lancashire cheese::Lancashire;Cornish Yarg;Stinking Bishop;Shropshire Blue;Derby cheese::Derby;Sage Derby;Lincolnshire Poacher;Dorset Blue Vinney;Single Gloucester;Swaledale cheese::Swaledale;Cornish Blue;Wensleydale with cranberries;Cotherstone cheese::Cotherstone;Y Fenni;Applewood (cheese)::Applewood");
+
+  add(0, 2, 'British Wildlife', 'GB', "European badger::Badger;Red fox;European hedgehog::Hedgehog;Red squirrel;Red deer;Atlantic puffin::Puffin;Barn owl;Eurasian otter::Otter;Adder;Grey seal;Red kite;Golden eagle;Mute swan;Common kingfisher::Kingfisher;Common frog;Mountain hare;Roe deer;Pine marten;Common seal;Eurasian beaver::Beaver;Scottish wildcat;Red grouse;Basking shark;Hazel dormouse::Dormouse;Stoat;Eurasian harvest mouse::Harvest mouse;Atlantic salmon;Grass snake;Fallow deer;Peregrine falcon;Osprey;Northern gannet::Gannet;Bottlenose dolphin");
+  add(0, 2, 'Garden Birds', 'GB', "European robin::Robin;Eurasian blue tit::Blue tit;Great tit;Common blackbird::Blackbird;Eurasian wren::Wren;House sparrow;Common chaffinch::Chaffinch;European goldfinch::Goldfinch;Common starling::Starling;Common wood pigeon::Wood pigeon;Eurasian magpie::Magpie;Eurasian jay::Jay;Long-tailed tit;Eurasian bullfinch::Bullfinch;Song thrush;Dunnock;Great spotted woodpecker;Eurasian nuthatch::Nuthatch;Eurasian collared dove::Collared dove;Coal tit;European greenfinch::Greenfinch;Eurasian siskin::Siskin;Eurasian treecreeper::Treecreeper;Eurasian blackcap::Blackcap;Common chiffchaff::Chiffchaff");
+  add(0, 2, 'British Dog Breeds', 'GB', "Labrador Retriever;Border Collie;English Cocker Spaniel::Cocker Spaniel;Jack Russell Terrier;Bulldog::English Bulldog;Pembroke Welsh Corgi::Corgi;Yorkshire Terrier;Staffordshire Bull Terrier::Staffie;English Springer Spaniel::Springer Spaniel;Scottish Terrier;West Highland White Terrier::Westie;Border Terrier;Greyhound;Whippet;Old English Sheepdog;Airedale Terrier;Irish Setter::::IE;Cavalier King Charles Spaniel;Golden Retriever;Beagle;Bull Terrier;Lakeland Terrier;English Setter;Basset Hound;Rough Collie;Shetland Sheepdog;Welsh Springer Spaniel;Bearded Collie");
+  add(0, 2, 'Farm Animals', 'GB', "Highland cattle;Shetland pony;Herdwick;Jacob sheep;Tamworth pig::Tamworth;Gloucestershire Old Spots;Clydesdale horse;Shire horse;Exmoor pony;Dartmoor pony;Suffolk Punch;Aberdeen Angus;Hereford cattle::Hereford;Dexter cattle::Dexter;Welsh Black cattle::Welsh Black;Suffolk sheep;Texel sheep::Texel;Cheviot sheep::Cheviot;Large Black pig::Large Black;British Saddleback;Longhorn cattle::Longhorn;Belted Galloway;Swaledale sheep::Swaledale;Soay sheep::Soay;Lincoln Red;Welsh Mountain pony");
+  add(0, 2, 'Plants and Trees', 'GB', "Daffodil;Hyacinthoides non-scripta::Bluebell;Primula vulgaris::Primrose;Foxglove;Snowdrop;Sweet pea;Lavender;Papaver rhoeas::Poppy;Anthriscus sylvestris::Cow parsley;Bellis perennis::Daisy;Buttercup;Calluna vulgaris::Heather;Ulex europaeus::Gorse;Hawthorn;Ilex aquifolium::Holly;Quercus robur::English oak;Betula pendula::Silver birch;Aesculus hippocastanum::Horse chestnut;Scots pine;Sorbus aucuparia::Rowan;Stinging nettle;Dandelion;Allium ursinum::Wild garlic;Sambucus nigra::Elder;Honeysuckle;Rosa canina::Dog rose;Yew;Common ivy");
+
+  add(0, 3, 'British Cars', 'GB', "Mini;Land Rover Defender;Aston Martin DB5;Jaguar E-Type;Morris Minor;Lotus Elise;McLaren F1;Reliant Robin;Bentley Continental GT;Range Rover;Triumph Spitfire;MG MGB;Austin Seven;Caterham 7;Rolls-Royce Silver Ghost;Austin FX4::London black cab;Ford Cortina;Mini Moke;Jensen Interceptor;TVR Griffith;Morgan Plus 4;Lotus Esprit;Rover SD1;Austin Allegro;Hillman Imp;Sinclair C5;Ford Capri;Vauxhall Astra;Land Rover Series I::Land Rover Series;Triumph TR6");
+  add(0, 3, 'Planes, Trains and Ships', 'GB', "Flying Scotsman (locomotive)::Flying Scotsman;LNER Class A4 4468 Mallard::Mallard;British Rail Class 43 (HST)::Intercity 125;Eurostar;Concorde;Supermarine Spitfire::Spitfire;Hawker Hurricane;Avro Lancaster;BAE Systems Hawk::Hawk (Red Arrows);Hawker Siddeley Harrier::Harrier Jump Jet;Avro Vulcan;RMS Queen Mary 2::Queen Mary 2;Cutty Sark;HMS Victory;Mary Rose;SS Great Britain;RMS Titanic;AEC Routemaster::Routemaster;Brompton Bicycle::Brompton;Penny-farthing;Hovercraft;Blackpool Tramway::Blackpool tram;London Underground;Glasgow Subway;Docklands Light Railway;Thames sailing barge::Thames barge;Isle of Wight Steam Railway::Steam railway;British Rail Class 08;Mini Cooper");
+
+  add(0, 4, 'Everyday Icons', 'GB', "Red telephone box::Red phone box;Pillar box::Pillar box;Flag of the United Kingdom::Union Jack;Penny Black;Wellington boot::Wellies;Bowler hat;Umbrella::Brolly;Hot-water bottle;Public house::The local pub;Fish and chip shop::Chippy;Allotment (gardening)::Allotment;Double-decker bus;Darts::Dartboard;Snooker;Cricket ball;Teapot;Electric kettle::Kettle;Tea;Cup and saucer::Cup and saucer;Conker;Maypole;Fruit machine;Pint (unit)::Pint glass;Rugby ball;Tweed (cloth)::Tweed;Barbour (company)::Wax jacket;Garden gnome;Bagpipes;Cricket pavilion::Cricket pavilion;Village green");
+
+  /* ---------- World ---------- */
+  add(6, 0, 'World Landmarks', '', "Eiffel Tower::::FR;Colosseum::::IT;Taj Mahal::::IN;Great Wall of China::::CN;Machu Picchu::::PE;Christ the Redeemer (statue)::::BR;Statue of Liberty::::US;Sydney Opera House::::AU;Giza pyramid complex::Pyramids of Giza::EG;Petra::::JO;Angkor Wat::::KH;Burj Khalifa::::AE;Sagrada Família::::ES;Golden Gate Bridge::::US;Leaning Tower of Pisa::::IT;Acropolis of Athens::::GR;Chichen Itza::::MX;Neuschwanstein Castle::::DE;Brandenburg Gate::::DE;Forbidden City::::CN;Mount Rushmore::::US;Moai::Moai (Easter Island)::CL;Petronas Towers::::MY;Tokyo Tower::::JP;Atomium::::BE;CN Tower::::CA;Saint Basil's Cathedral::::RU;Marina Bay Sands::::SG;Hagia Sophia::::TR;Trevi Fountain::::IT;Arc de Triomphe::::FR;Stonehenge::::GB;Big Ben::::GB");
+  add(6, 0, 'Natural Wonders', '', "Grand Canyon::::US;Niagara Falls::::CA;Victoria Falls::::ZM;Iguazu Falls::::AR;Mount Fuji::::JP;Uluru::::AU;Great Barrier Reef::::AU;Matterhorn::::CH;Ha Long Bay::::VN;Mount Everest::::NP;Angel Falls::::VE;Salar de Uyuni::::BO;Antelope Canyon::::US;Zhangjiajie National Forest Park::::CN;Geirangerfjord::::NO;Blue Lagoon (Iceland)::Blue Lagoon::IS;Plitvice Lakes National Park::::HR;Cappadocia::::TR;Giant's Causeway::::GB;Torres del Paine National Park::Torres del Paine::CL;Yellowstone National Park::Yellowstone::US;Mount Kilimanjaro::::TZ;Moraine Lake::::CA;Pamukkale::::TR;Cinque Terre::::IT;Santorini::::GR;Amalfi Coast::::IT;Lake Baikal::::RU;Dead Sea::::JO;Lake Bled::::SI;Perito Moreno Glacier::::AR;Banff National Park::::CA");
+  add(6, 0, 'World Cities', '', "Paris::::FR;Rome::::IT;Tokyo::::JP;New York City::::US;Sydney::::AU;Rio de Janeiro::::BR;Istanbul::::TR;Barcelona::::ES;Amsterdam::::NL;Prague::::CZ;Venice::::IT;Dubai::::AE;Singapore::::SG;Cape Town::::ZA;Marrakesh::::MA;Kyoto::::JP;Vienna::::AT;Buenos Aires::::AR;Mexico City::::MX;Bangkok::::TH;Hong Kong::::HK;Seoul::::KR;Lisbon::::PT;Copenhagen::::DK;Florence::::IT;Edinburgh::::GB;Havana::::CU;Cairo::::EG;Mumbai::::IN;Vancouver::::CA;San Francisco::::US;Reykjavík::::IS;Budapest::::HU;Berlin::::DE;Athens::::GR;Cusco::::PE;Jerusalem::::IL;Hanoi::::VN;Auckland::::NZ");
+  add(6, 0, 'Temples, Mosques and Churches', '', "Notre-Dame de Paris::::FR;St. Peter's Basilica::::VA;Cologne Cathedral::::DE;Sultan Ahmed Mosque::Blue Mosque::TR;Sheikh Zayed Grand Mosque::::AE;Borobudur::::ID;Golden Temple::::IN;Kinkaku-ji::::JP;Fushimi Inari-taisha::::JP;Wat Arun::::TH;Shwedagon Pagoda::::MM;Temple of Heaven::::CN;Milan Cathedral::::IT;Mosque–Cathedral of Córdoba::Mezquita of Córdoba::ES;Western Wall::::IL;Dome of the Rock::::IL;Lotus Temple::::IN;Meenakshi Temple::::IN;Prambanan::::ID;Sacré-Cœur, Paris::Sacré-Cœur::FR;Hallgrímskirkja::::IS;Kiyomizu-dera::::JP;Sagrada Família::::ES;Hagia Sophia::::TR;Church of the Savior on Blood::::RU;Wat Pho::::TH;Tōdai-ji::::JP;Paro Taktsang::Tiger's Nest::BT;Hassan II Mosque::::MA;Karnak::::EG");
+  add(6, 0, 'Skyscrapers and Bridges', '', "Burj Khalifa::::AE;Shanghai Tower::::CN;Taipei 101::::TW;One World Trade Center::::US;Empire State Building::::US;Lotte World Tower::::KR;Burj Al Arab::::AE;30 St Mary Axe::The Gherkin::GB;Sydney Harbour Bridge::::AU;Golden Gate Bridge::::US;Brooklyn Bridge::::US;Millau Viaduct::::FR;Tower Bridge::::GB;Akashi Kaikyō Bridge::::JP;Rialto Bridge::::IT;Charles Bridge::::CZ;Ponte Vecchio::::IT;Stari Most::::BA;Helix Bridge::::SG;Chrysler Building::::US;Space Needle::::US;Tokyo Skytree::::JP;Øresund Bridge::::DK;Oriental Pearl Tower::::CN;Pont du Gard::::FR;Forth Bridge::::GB;CN Tower::::CA;Petronas Towers::::MY");
+  add(6, 0, 'Palaces and Castles', '', "Palace of Versailles::::FR;Neuschwanstein Castle::::DE;Alhambra::::ES;Himeji Castle::::JP;Schönbrunn Palace::::AT;Topkapı Palace::::TR;Mont-Saint-Michel::::FR;Peterhof Palace::::RU;Château de Chambord::Chambord::FR;Prague Castle::::CZ;Bran Castle::::RO;Château de Chenonceau::Chenonceau::FR;Hohenzollern Castle::::DE;Kronborg::::DK;Wawel Castle::::PL;Matsumoto Castle::::JP;Amer Fort::Amber Fort::IN;Mysore Palace::::IN;Grand Palace::::TH;Potala Palace::::CN;Gyeongbokgung::::KR;Buda Castle::::HU;Pena Palace::::PT;Windsor Castle::::GB;Edinburgh Castle::::GB;Hearst Castle::::US;Biltmore Estate::::US;Eilean Donan::::GB;Malbork Castle::::PL;Alcázar of Seville::::ES;Dolmabahçe Palace::::TR;Winter Palace::::RU;De Haar Castle::::NL;Hofburg::::AT");
+  add(6, 0, 'Museums', '', "Louvre::::FR;British Museum::::GB;Metropolitan Museum of Art::The Met::US;Prado Museum::The Prado::ES;Uffizi::::IT;Rijksmuseum::::NL;Hermitage Museum::::RU;Vatican Museums::::VA;Guggenheim Museum Bilbao::::ES;Museum of Modern Art::MoMA::US;Tate Modern::::GB;Musée d'Orsay::::FR;National Palace Museum::::TW;Pergamon Museum::::DE;Egyptian Museum::::EG;Acropolis Museum::::GR;Louvre Abu Dhabi::::AE;Van Gogh Museum::::NL;Centre Pompidou::::FR;National Museum of Anthropology (Mexico)::National Museum of Anthropology::MX;Museum of Islamic Art, Doha::::QA;Ghibli Museum::::JP;Art Institute of Chicago::::US;Getty Center::::US;Royal Ontario Museum::::CA;Natural History Museum, London::Natural History Museum::GB;National Air and Space Museum::::US;Deutsches Museum::::DE;Te Papa::::NZ;Tokyo National Museum::::JP");
+  add(6, 0, 'Beaches and Islands', '', "Bondi Beach::::AU;Copacabana, Rio de Janeiro::Copacabana::BR;Maya Bay::::TH;Waikiki::::US;Bora Bora::::PF;Maldives::::MV;La Digue::::SC;Ibiza::::ES;Capri::::IT;Positano::::IT;Navagio::Navagio Beach::GR;Tulum, Quintana Roo::Tulum::MX;Phi Phi Islands::::TH;Bali::::ID;Whitehaven Beach::::AU;Ipanema::::BR;El Nido, Palawan::El Nido::PH;Maui::::US;Mykonos::::GR;Lofoten::::NO;Zanzibar::::TZ;Fernando de Noronha::::BR;Galápagos Islands::::EC;Easter Island::::CL;Tahiti::::PF;Fiji::::FJ;Sardinia::::IT;Madeira::::PT;Seychelles::::SC;Phuket Province::Phuket::TH;Langkawi::::MY;Mauritius::::MU;Zakynthos::::GR;Cancún::::MX");
+  add(6, 0, 'Stadiums and Arenas', '', "Camp Nou::::ES;Santiago Bernabéu Stadium::::ES;Maracanã Stadium::Maracanã::BR;Allianz Arena::::DE;San Siro::::IT;Wembley Stadium::::GB;Old Trafford::::GB;La Bombonera::::AR;Estadio Azteca::::MX;Signal Iduna Park::::DE;Anfield::::GB;Stade de France::::FR;Parc des Princes::::FR;Johan Cruyff Arena::::NL;MetLife Stadium::::US;Rose Bowl (stadium)::Rose Bowl::US;Melbourne Cricket Ground::::AU;Eden Gardens::::IN;Narendra Modi Stadium::::IN;Yankee Stadium::::US;Fenway Park::::US;Madison Square Garden::::US;Wrigley Field::::US;Lusail Stadium::::QA;FNB Stadium::Soccer City::ZA;Estadio Monumental Antonio Vespucio Liberti::El Monumental::AR;Olympiastadion (Berlin)::Olympiastadion::DE;Beijing National Stadium::Bird's Nest::CN;Stadio Olimpico (Rome)::Stadio Olimpico::IT;Estadio Centenario::::UY;Arthur Ashe Stadium::::US;Stade Roland Garros::::FR;Sydney Cricket Ground::::AU;Lord's::::GB");
+
+  add(6, 1, 'World Dishes', '', "Pizza::::IT;Sushi::::JP;Paella::::ES;Pad thai::Pad Thai::TH;Phở::Pho::VN;Ramen::::JP;Taco::Tacos::MX;Peking duck::::CN;Butter chicken::::IN;Biryani::::IN;Bibimbap::::KR;Kimchi::::KR;Falafel::::EG;Hummus::::LB;Moussaka::::GR;Goulash::::HU;Pierogi::::PL;Borscht::::UA;Wiener schnitzel::Schnitzel::AT;Poutine::::CA;Ceviche::::PE;Feijoada::::BR;Jollof rice::::NG;Tajine::Tagine::MA;Dim sum::::CN;Laksa::::MY;Nasi lemak::::MY;Rendang::::ID;Massaman curry::::TH;Tom yum::::TH;Bánh mì::::VN;Shawarma::::LB;Ratatouille::::FR;Coq au vin::::FR;Lasagne::::IT;Risotto::::IT;Fondue::::CH;Pelmeni::::RU;Injera::::ET;Arepa::::VE;Lomo saltado::::PE;Gumbo::::US;Fish and chips::::GB;Haggis::::GB;Swedish meatballs::::SE;Gyros::::GR;Mapo doufu::Mapo tofu::CN;Adobo::::PH;Kung Pao chicken::::CN;Tonkatsu::::JP");
+  add(6, 1, 'Street Food', '', "Takoyaki::::JP;Churros::::ES;Empanada::::AR;Arancini::::IT;Samosa::::IN;Pani puri::::IN;Döner kebab::::DE;Crêpe::::FR;Hot dog::::US;Pretzel::::DE;Baozi::Bao::CN;Jianbing::::CN;Satay::::ID;Poffertjes::::NL;Stroopwafel::::NL;Gelato::::IT;Elote::::MX;Tteokbokki::::KR;Hotteok::::KR;Currywurst::::DE;Bánh xèo::::VN;Roti canai::::MY;Chaat::::IN;Vada pav::::IN;Funnel cake::::US;Gözleme::::TR;Simit::::TR;Souvlaki::::GR;Bunny chow::::ZA;Pão de queijo::::BR;Pupusa::::SV;Tamale::::MX;Okonomiyaki::::JP;Gyoza::::JP;Bubble waffle::Egg waffle::HK;Lángos::::HU;Corn dog::::US;Beignet::::US;Philadelphia cheesesteak::::US;Lobster roll::::US");
+  add(6, 1, 'World Desserts', '', "Tiramisu::::IT;Crème brûlée::::FR;Baklava::::TR;Mochi::::JP;Pavlova (cake)::Pavlova::NZ;Lamington::::AU;Tres leches cake::Tres leches::MX;Brigadeiro::::BR;Gulab jamun::::IN;Mille-feuille::::FR;Macaron::::FR;Éclair::::FR;Black Forest gateau::::DE;Sachertorte::::AT;Apple strudel::::AT;Cheesecake::::US;Brownie (confectionery)::Brownie::US;Apple pie::::US;Cannoli::::IT;Panna cotta::::IT;Kulfi::::IN;Dulce de leche::::AR;Alfajor::::AR;Pastel de nata::::PT;Kürtőskalács::Chimney cake::HU;Baumkuchen::::DE;Mango sticky rice::::TH;Bingsu::::KR;Dorayaki::::JP;Taiyaki::::JP;Tarte Tatin::::FR;Basbousa::::EG;Loukoumades::::GR;Galaktoboureko::::GR;Halo-halo::::PH;Mont Blanc (dessert)::Mont Blanc::FR;Sticky toffee pudding::::GB;Churros::::ES");
+  add(6, 1, 'Drinks of the World', '', "Sake::::JP;Champagne::::FR;Tequila::::MX;Prosecco::::IT;Sangria::::ES;Mojito::::CU;Caipirinha::::BR;Pisco::::PE;Absinthe::::CH;Vodka::::RU;Soju::::KR;Baijiu::::CN;Yerba mate::Mate::AR;Masala chai::::IN;Bubble tea::::TW;Matcha::::JP;Turkish coffee::::TR;Espresso::::IT;Lassi::::IN;Horchata::::ES;Ayran::::TR;Kvass::::RU;Rakı::::TR;Ouzo::::GR;Guinness::::IE;Pilsner::::CZ;Trappist beer::::BE;Sherry::::ES;Port wine::::PT;Mezcal::::MX;Piña colada::::PR;Margarita::::US;Aperol Spritz::::IT;Negroni::::IT;Limoncello::::IT;Rooibos::::ZA;Scotch whisky::::GB;Cachaça::::BR;Irish coffee::::IE;Maghrebi mint tea::Mint tea::MA;Pulque::::MX;Cognac::::FR;Genever::::NL");
+  add(6, 1, 'World Cheese', '', "Brie::::FR;Camembert::::FR;Roquefort::::FR;Parmigiano Reggiano::::IT;Mozzarella::::IT;Gorgonzola::::IT;Gouda cheese::Gouda::NL;Edam cheese::Edam::NL;Emmental cheese::Emmental::CH;Gruyère cheese::Gruyère::CH;Feta::::GR;Halloumi::::CY;Manchego::::ES;Cheddar cheese::Cheddar::GB;Stilton cheese::Stilton::GB;Danablu::Danish Blue::DK;Havarti::::DK;Pecorino Romano::::IT;Cabrales cheese::Cabrales::ES;Comté cheese::Comté::FR;Munster cheese::Munster::FR;Paneer::::IN;Queso fresco::::MX;Provolone::::IT;Taleggio cheese::Taleggio::IT;Burrata::::IT;Ricotta::::IT;Jarlsberg cheese::Jarlsberg::NO;Brunost::::NO;Raclette::::CH;Mascarpone::::IT;Reblochon::::FR;Époisses cheese::Époisses::FR;Cotija cheese::Cotija::MX;Oaxaca cheese::Oaxaca::MX;Appenzeller cheese::Appenzeller::CH;Kasseri::::GR;Labneh::::LB");
+  add(6, 1, 'Fruit', '', "Mango;Durian;Dragon fruit::Dragon fruit;Lychee;Mangosteen;Passion fruit;Papaya;Pineapple;Jackfruit;Kiwifruit::Kiwi;Persimmon;Pomegranate;Fig;Guava;Coconut;Banana;Rambutan;Carambola::Starfruit;Avocado;Cherimoya;Plantain;Tamarind;Watermelon;Pomelo;Quince;Blood orange;Cherry;Raspberry;Apricot;Mulberry");
+
+  add(6, 2, 'Ocean Life', '', "Blue whale;Great white shark;Manta ray;Ocellaris clownfish::Clownfish;Sea otter;Orca;Humpback whale;Narwhal;Seahorse;Octopus;Green sea turtle;Hammerhead shark;Whale shark;Bottlenose dolphin;Walrus;Emperor penguin;Jellyfish;West Indian manatee::Manatee;Giant squid;Pufferfish;Leafy seadragon;Ocean sunfish::Mola mola;Beluga whale;Starfish;Lionfish;Mantis shrimp;Dugong;Nautilus;Moray eel;Sperm whale;Blue-ringed octopus;Anglerfish;Tiger shark");
+  add(6, 2, 'World Dog Breeds', '', "Akita (dog breed)::Akita::JP;Shiba Inu::::JP;German Shepherd::::DE;Rottweiler::::DE;Dachshund::::DE;Dobermann::Doberman::DE;Siberian Husky::::RU;Samoyed dog::Samoyed::RU;Chihuahua (dog)::Chihuahua::MX;Poodle::::FR;French Bulldog::::FR;Pug::::CN;Shih Tzu::::CN;Chow Chow::::CN;St. Bernard (dog)::Saint Bernard::CH;Bernese Mountain Dog::::CH;Great Dane::::DE;Boxer (dog)::Boxer::DE;Dalmatian (dog)::Dalmatian::HR;Basenji::::CD;Rhodesian Ridgeback::::ZW;Afghan Hound::::AF;Alaskan Malamute::::US;Newfoundland (dog)::Newfoundland::CA;Portuguese Water Dog::::PT;Vizsla::::HU;Pomeranian (dog)::Pomeranian::PL;Maltese (dog)::Maltese::MT;Tibetan Mastiff::::CN;Xoloitzcuintli::::MX;Cane Corso::::IT;Belgian Malinois::::BE;Papillon (dog)::Papillon::FR;Jindo (dog)::Korean Jindo::KR;Australian Cattle Dog::::AU;Canaan Dog::::IL;Pharaoh Hound::::MT;Saluki::::IR;Bichon Frise::::FR");
+
+  add(6, 3, 'Cars of the World', '', "Porsche 911::::DE;Ferrari F40::::IT;Lamborghini Countach::::IT;Volkswagen Beetle::::DE;Toyota Land Cruiser::::JP;Mazda MX-5::::JP;Nissan Skyline GT-R::Skyline GT-R::JP;Honda NSX::::JP;Toyota Supra::::JP;Ford Mustang::::US;Chevrolet Corvette::::US;Tesla Model S::::US;Ford Model T::::US;DeLorean DMC-12::::US;Jeep Wrangler::::US;Citroën 2CV::::FR;Renault 5::::FR;Peugeot 205::::FR;Fiat 500::::IT;Mercedes-Benz 300 SL::::DE;BMW M3::::DE;Audi Quattro::::DE;Volvo Amazon::::SE;Saab 900::::SE;Koenigsegg Agera::::SE;Bugatti Veyron::::FR;Lada Niva::::RU;Trabant::::DE;Tata Nano::::IN;Hindustan Ambassador::::IN;Subaru Impreza WRX::::JP;Lexus LFA::::JP;Toyota Hilux::::JP;Dodge Challenger::::US;Pontiac Firebird::::US;Mini (marque)::Mini::GB;Land Rover Defender::::GB;Aston Martin DB5::::GB;Mercedes-Benz G-Class::::DE;Volkswagen Type 2::VW Campervan::DE");
+  add(6, 3, 'Planes, Trains and Boats', '', "Shinkansen::::JP;TGV::::FR;Venice Simplon-Orient-Express::::FR;Trans-Siberian Railway::::RU;Boeing 747::::US;Airbus A380::::FR;Concorde::::GB;Douglas DC-3::::US;Lockheed SR-71 Blackbird::::US;Space Shuttle::::US;Zeppelin::::DE;RMS Titanic::::GB;Vasa (ship)::Vasa::SE;Gondola::::IT;Auto rickshaw::Tuk-tuk::IN;Vespa::::IT;San Francisco cable car system::San Francisco cable car::US;Taxicabs of New York City::New York yellow cab::US;Shanghai maglev train::Shanghai Maglev::CN;Saturn V::::US;Soyuz (spacecraft)::Soyuz::RU;Viking ship::::NO;Junk (ship)::Chinese junk::CN;Dhow::::OM;Felucca::::EG;Harley-Davidson::::US;Ducati::::IT;Honda Super Cub::::JP;Royal Enfield Bullet::::IN;Glacier Express::::CH;Rocky Mountaineer::::CA;The Ghan::::AU;Blue Train::::ZA;Queen Mary 2::::GB;Boeing 787 Dreamliner::::US;Hot air balloon");
+
+  add(6, 4, 'Musical Instruments', '', "Sitar::::IN;Didgeridoo::::AU;Bagpipes::::GB;Koto (instrument)::Koto::JP;Djembe::::GN;Bouzouki::::GR;Balalaika::::RU;Ukulele::::US;Steelpan::::TT;Shamisen::::JP;Erhu::::CN;Oud;Tabla::::IN;Charango::::BO;Pan flute;Kalimba;Banjo::::US;Mandolin::::IT;Alphorn::::CH;Hurdy-gurdy;Taiko::::JP;Kora (instrument)::Kora::SN;Hang (instrument)::Hang::CH;Mbira::::ZW;Zither;Gamelan::::ID;Guzheng::::CN;Pipa::::CN;Santoor::::IN;Cajón::::PE;Marimba::::GT;Bodhrán::::IE;Uilleann pipes::::IE;Duduk::::AM;Kantele::::FI;Nyckelharpa::::SE;Hardanger fiddle::::NO;Berimbau::::BR;Bandoneon::::AR;Theremin::::RU;Accordion");
+  add(6, 4, 'Flags', '', "Flag of Japan::Japan;Flag of Brazil::Brazil;Flag of Canada::Canada;Flag of Switzerland::Switzerland;Flag of South Africa::South Africa;Flag of Nepal::Nepal;Flag of Greece::Greece;Flag of Jamaica::Jamaica;Flag of Italy::Italy;Flag of Argentina::Argentina;Flag of Kenya::Kenya;Flag of India::India;Flag of South Korea::South Korea;Flag of Mexico::Mexico;Flag of Turkey::Turkey;Flag of Sweden::Sweden;Flag of Ireland::Ireland;Flag of Australia::Australia;Flag of New Zealand::New Zealand;Flag of the United States::United States;Flag of Germany::Germany;Flag of France::France;Flag of Spain::Spain;Flag of Portugal::Portugal;Flag of Wales::Wales;Flag of Scotland::Scotland;Flag of Cyprus::Cyprus;Flag of Bhutan::Bhutan;Flag of Mozambique::Mozambique;Flag of Seychelles::Seychelles;Flag of Chile::Chile;Flag of Peru::Peru;Flag of Morocco::Morocco;Flag of Egypt::Egypt;Flag of Jordan::Jordan;Flag of Lebanon::Lebanon;Flag of Israel::Israel;Flag of Ukraine::Ukraine;Flag of Denmark::Denmark;Flag of Finland::Finland;Flag of Norway::Norway;Flag of Poland::Poland;Flag of the Netherlands::Netherlands;Flag of Belgium::Belgium;Flag of Thailand::Thailand;Flag of Vietnam::Vietnam;Flag of China::China;Flag of Indonesia::Indonesia;Flag of Saudi Arabia::Saudi Arabia;Flag of Kazakhstan::Kazakhstan;Flag of Colombia::Colombia");
+
+  /* ---------- Europe ---------- */
+  add(1, 0, 'European Landmarks', '', "Eiffel Tower::::FR;Colosseum::::IT;Sagrada Família::::ES;Acropolis of Athens::::GR;Brandenburg Gate::::DE;Atomium::::BE;Charles Bridge::::CZ;Neuschwanstein Castle::::DE;Leaning Tower of Pisa::::IT;Saint Basil's Cathedral::::RU;Mont-Saint-Michel::::FR;The Little Mermaid (statue)::The Little Mermaid::DK;Manneken Pis::::BE;Trevi Fountain::::IT;Arc de Triomphe::::FR;Louvre::::FR;Hagia Sophia::::TR;Alhambra::::ES;Park Güell::::ES;Parthenon::::GR;Pantheon, Rome::Pantheon::IT;Spanish Steps::::IT;Cologne Cathedral::::DE;Prague Astronomical Clock::::CZ;Belém Tower::::PT;Sacré-Cœur, Paris::Sacré-Cœur::FR;Hallgrímskirkja::::IS;Kinderdijk::::NL;Stari Most::::BA;Matterhorn::::CH;Széchenyi Chain Bridge::::HU;Hungarian Parliament Building::::HU;Piazza San Marco::St Mark's Square::IT;Pont du Gard::::FR;Big Ben::::GB");
+  add(1, 0, 'European Cities', '', "Paris::::FR;Rome::::IT;Barcelona::::ES;Amsterdam::::NL;Prague::::CZ;Venice::::IT;Vienna::::AT;Lisbon::::PT;Copenhagen::::DK;Florence::::IT;Budapest::::HU;Berlin::::DE;Athens::::GR;Reykjavík::::IS;Dubrovnik::::HR;Kraków::::PL;Bruges::::BE;Salzburg::::AT;Seville::::ES;Porto::::PT;Munich::::DE;Stockholm::::SE;Oslo::::NO;Helsinki::::FI;Tallinn::::EE;Zürich::::CH;Milan::::IT;Naples::::IT;Valencia::::ES;Lyon::::FR;Nice::::FR;Riga::::LV;Vilnius::::LT;Ljubljana::::SI;Split, Croatia::Split::HR;Brussels::::BE;Hamburg::::DE;Edinburgh::::GB;London::::GB;Dublin::::IE");
+  add(1, 0, 'European Football Grounds', '', "Camp Nou::::ES;Santiago Bernabéu Stadium::::ES;Allianz Arena::::DE;San Siro::::IT;Signal Iduna Park::::DE;Stade de France::::FR;Parc des Princes::::FR;Johan Cruyff Arena::::NL;Olympiastadion (Berlin)::Olympiastadion::DE;Stadio Olimpico (Rome)::Stadio Olimpico::IT;Estádio da Luz::::PT;Estádio do Dragão::::PT;Anfield::::GB;Old Trafford::::GB;Wembley Stadium::::GB;Mestalla Stadium::::ES;Metropolitano Stadium::::ES;Veltins-Arena::::DE;Philips Stadion::::NL;De Kuip::::NL;Celtic Park::::GB;Allianz Stadium (Turin)::Juventus Stadium::IT;Stadio Diego Armando Maradona::::IT;Puskás Aréna::::HU;Ernst-Happel-Stadion::::AT;Stade Vélodrome::::FR;Ibrox Stadium::Ibrox::GB");
+  add(1, 1, 'Italian Food', 'IT', "Pizza;Carbonara;Lasagne;Risotto;Tiramisu;Gelato;Bruschetta;Arancini;Osso buco;Panna cotta;Cannoli;Focaccia;Ravioli;Gnocchi;Minestrone;Caprese salad;Prosciutto;Ciabatta;Panettone;Pesto;Ragù;Cacio e pepe;Saltimbocca;Cannelloni;Pizza Margherita::Margherita pizza;Calzone;Affogato;Spaghetti alle vongole;Arrabbiata sauce::Arrabbiata;Tagliatelle");
+  add(1, 1, 'French Food', 'FR', "Croissant;Baguette;Crêpe;Ratatouille;Coq au vin;Cassoulet;Bouillabaisse;Quiche Lorraine;Onion soup::French onion soup;Beef bourguignon::Boeuf bourguignon;Crème brûlée;Macaron;Éclair;Tarte Tatin;Mille-feuille;Pain au chocolat;Croque monsieur;Foie gras;Steak frites;Niçoise salad::Salade niçoise;Soufflé;Madeleine (cake)::Madeleine;Profiterole;Clafoutis;Gratin dauphinois;Brioche;Duck confit::Confit de canard;Moules-frites;Escargot::Snails");
+
+  /* ---------- Asia ---------- */
+  add(2, 1, 'Japanese Food', 'JP', "Sushi;Ramen;Tempura;Takoyaki;Okonomiyaki;Gyoza;Tonkatsu;Sashimi;Udon;Soba;Onigiri;Yakitori;Japanese curry;Teriyaki;Miso soup;Mochi;Dorayaki;Taiyaki;Wagyu;Unadon::Unagi rice bowl;Tamagoyaki;Matcha;Sukiyaki;Shabu-shabu;Yakisoba;Karaage;Natto;Bento;Dango;Kaiseki");
+  add(2, 1, 'Chinese and Korean Food', '', "Peking duck::::CN;Dim sum::::CN;Mapo doufu::Mapo tofu::CN;Kung Pao chicken::::CN;Xiaolongbao::::CN;Chinese hot pot::Hot pot::CN;Chow mein::::CN;Spring roll::::CN;Char siu::::CN;Congee::::CN;Dan dan noodles::::CN;Bibimbap::::KR;Kimchi::::KR;Korean fried chicken::::KR;Bulgogi::::KR;Tteokbokki::::KR;Japchae::::KR;Gimbap::Kimbap::KR;Samgyeopsal::::KR;Kimchi jjigae::::KR;Hotteok::::KR;Naengmyeon::::KR;Mandu (food)::Mandu::KR;Dakgalbi::::KR");
+  add(2, 1, 'Indian Food', 'IN', "Butter chicken;Biryani;Samosa;Dosa;Chaat;Pani puri;Vada pav;Paneer tikka;Tandoori chicken;Palak paneer;Naan;Chole bhature;Rogan josh;Dal makhani;Idli;Gulab jamun;Jalebi;Kulfi;Lassi;Masala chai;Pav bhaji;Aloo gobi;Korma;Vindaloo;Raita;Kachori;Rasgulla;Thali");
+  add(2, 1, 'Southeast Asian Food', '', "Pad thai::Pad Thai::TH;Tom yum::::TH;Massaman curry::::TH;Green curry::::TH;Som tam::::TH;Phở::Pho::VN;Bánh mì::::VN;Bún chả::::VN;Gỏi cuốn::Summer rolls::VN;Nasi lemak::::MY;Laksa::::MY;Roti canai::::MY;Char kway teow::::MY;Rendang::::ID;Nasi goreng::::ID;Satay::::ID;Gado-gado::::ID;Adobo::::PH;Sinigang::::PH;Lechon::::PH;Halo-halo::::PH;Hainanese chicken rice::::SG;Chilli crab::::SG;Mohinga::::MM;Fish amok::::KH;Lok lak::::KH;Larb::::LA;Khao soi::::TH;Mango sticky rice::::TH;Bakso::::ID");
+  add(2, 0, 'Asian Landmarks', '', "Taj Mahal::::IN;Great Wall of China::::CN;Angkor Wat::::KH;Petronas Towers::::MY;Forbidden City::::CN;Borobudur::::ID;Golden Temple::::IN;Kinkaku-ji::::JP;Burj Khalifa::::AE;Marina Bay Sands::::SG;Potala Palace::::CN;Tokyo Tower::::JP;Himeji Castle::::JP;Fushimi Inari-taisha::::JP;Shwedagon Pagoda::::MM;Wat Arun::::TH;Gateway of India::::IN;Hawa Mahal::::IN;Red Fort::::IN;Lotus Temple::::IN;Meenakshi Temple::::IN;Sigiriya::::LK;Paro Taktsang::Tiger's Nest::BT;Terracotta Army::::CN;The Bund::::CN;Oriental Pearl Tower::::CN;N Seoul Tower::::KR;Taipei 101::::TW;Itsukushima Shrine::::JP;Great Buddha of Kamakura::::JP;Sheikh Zayed Grand Mosque::::AE;Ha Long Bay::::VN;Prambanan::::ID");
+  add(2, 0, 'Asian Cities', '', "Tokyo::::JP;Kyoto::::JP;Osaka::::JP;Seoul::::KR;Bangkok::::TH;Singapore::::SG;Hong Kong::::HK;Hanoi::::VN;Ho Chi Minh City::::VN;Mumbai::::IN;Delhi::::IN;Jaipur::::IN;Varanasi::::IN;Kolkata::::IN;Beijing::::CN;Shanghai::::CN;Chengdu::::CN;Kuala Lumpur::::MY;Taipei::::TW;Dubai::::AE;Istanbul::::TR;Kathmandu::::NP;Colombo::::LK;Manila::::PH;Jakarta::::ID;Luang Prabang::::LA;Siem Reap::::KH;Yangon::::MM;Doha::::QA;Abu Dhabi::::AE;Tbilisi::::GE;Baku::::AZ;Samarkand::::UZ;Ulaanbaatar::::MN");
+  add(2, 2, 'Asian Animals', '', "Giant panda::::CN;Bengal tiger::::IN;Asian elephant;Orangutan::::ID;Komodo dragon::::ID;Snow leopard;Red panda;Proboscis monkey::::MY;Japanese macaque::::JP;Indian rhinoceros::::IN;Sun bear;King cobra;Mandarin duck;Red-crowned crane::::JP;Indian peafowl::::IN;Asiatic lion::::IN;Slow loris;Philippine tarsier::::PH;Gibbon;Siberian tiger::::RU;Amur leopard::::RU;Water buffalo;Przewalski's horse::::MN;Bactrian camel::::MN;Gharial::::IN;Clouded leopard;Sloth bear::::IN;Binturong;Great hornbill::::IN;Golden snub-nosed monkey::::CN;Fishing cat;Saiga antelope::::KZ");
+
+  /* ---------- Americas ---------- */
+  add(3, 1, 'Mexican and Latin American Food', '', "Taco::Tacos::MX;Guacamole::::MX;Enchilada::::MX;Tamale::::MX;Mole (sauce)::Mole::MX;Pozole::::MX;Chilaquiles::::MX;Quesadilla::::MX;Tostada::::MX;Tres leches cake::::MX;Ceviche::::PE;Lomo saltado::::PE;Empanada::::AR;Asado::::AR;Chimichurri::::AR;Alfajor::::AR;Dulce de leche::::AR;Feijoada::::BR;Brigadeiro::::BR;Pão de queijo::::BR;Coxinha::::BR;Arepa::::VE;Pupusa::::SV;Ropa vieja::::CU;Cuban sandwich::::CU;Gallo pinto::::CR;Bandeja paisa::::CO;Ajiaco::::CO;Churrasco::::BR;Açaí na tigela::::BR");
+  add(3, 1, 'North American Food', 'US', "Hamburger::Burger;Hot dog;Apple pie;Cheesecake;Brownie (confectionery)::Brownie;Philadelphia cheesesteak::Philly cheesesteak;Macaroni and cheese::Mac and cheese;Buffalo wing::Buffalo wings;Barbecue;New England clam chowder::Clam chowder;Cornbread;Fried chicken;Gumbo;Jambalaya;Po' boy;Lobster roll;Chicago-style pizza::Deep-dish pizza;Pumpkin pie;Biscuits and gravy;Corn dog;Beignet;Key lime pie;S'more;Reuben sandwich;Meatloaf;Chili con carne::Chilli;Cobb salad;Poutine::::CA;Nanaimo bar::::CA;Butter tart::::CA;Maple syrup::::CA;Tourtière::::CA;Montreal-style bagel::::CA");
+  add(3, 0, 'US National Parks', 'US', "Yellowstone National Park;Yosemite National Park;Grand Canyon National Park;Zion National Park;Arches National Park;Glacier National Park (U.S.);Great Smoky Mountains National Park;Acadia National Park;Denali National Park and Preserve::Denali;Joshua Tree National Park;Bryce Canyon National Park;Everglades National Park;Olympic National Park;Grand Teton National Park;Rocky Mountain National Park;Sequoia National Park;Death Valley National Park;Haleakalā National Park;Carlsbad Caverns National Park;Badlands National Park;Canyonlands National Park;Mount Rainier National Park;Shenandoah National Park;Big Bend National Park;Redwood National and State Parks::Redwood;Crater Lake National Park;Capitol Reef National Park;Petrified Forest National Park", ' National Park');
+  add(3, 0, 'American Landmarks', '', "Statue of Liberty::::US;Golden Gate Bridge::::US;Mount Rushmore::::US;Empire State Building::::US;Christ the Redeemer (statue)::::BR;Machu Picchu::::PE;Chichen Itza::::MX;CN Tower::::CA;Space Needle::::US;Hoover Dam::::US;Lincoln Memorial::::US;Alcatraz Island::::US;Hollywood Sign::::US;Brooklyn Bridge::::US;Times Square::::US;Niagara Falls::::CA;Sugarloaf Mountain::::BR;Teotihuacan::::MX;Salar de Uyuni::::BO;Moai::::CL;Panama Canal::::PA;Gateway Arch::::US;White House::::US;United States Capitol::::US;Parliament Hill::::CA;Château Frontenac::::CA;Pyramid of the Sun::::MX;Palacio de Bellas Artes::::MX;Casa Rosada::::AR;Tikal::::GT");
+  add(3, 0, 'American Cities', '', "New York City::::US;San Francisco::::US;Chicago::::US;New Orleans::::US;Los Angeles::::US;Miami::::US;Las Vegas::::US;Vancouver::::CA;Toronto::::CA;Montreal::::CA;Mexico City::::MX;Havana::::CU;Rio de Janeiro::::BR;Buenos Aires::::AR;Cusco::::PE;Lima::::PE;Santiago::::CL;Cartagena, Colombia::Cartagena::CO;Medellín::::CO;Bogotá::::CO;Quito::::EC;São Paulo::::BR;Salvador, Bahia::Salvador::BR;Oaxaca City::Oaxaca::MX;Boston::::US;Seattle::::US;Washington, D.C.::::US;Austin, Texas::Austin::US;Honolulu::::US;Nashville, Tennessee::Nashville::US;Quebec City::::CA;Panama City::::PA;San Juan, Puerto Rico::San Juan::PR;Montevideo::::UY");
+  add(3, 2, 'Animals of the Americas', '', "Bald eagle::::US;Jaguar;Capybara;Brown-throated sloth::Sloth;Llama::::PE;Alpaca::::PE;Armadillo;Andean condor;Toco toucan::Toucan;Scarlet macaw;Brown bear::Grizzly bear;American bison::::US;Moose::::CA;North American beaver::Beaver::CA;Polar bear;Cougar::Puma;Green anaconda::Anaconda;Giant anteater;Poison dart frog;Axolotl::::MX;West Indian manatee::Manatee;Bighorn sheep;Coyote;Raccoon;Blue-footed booby::::EC;Galápagos tortoise::::EC;Marine iguana::::EC;Humboldt penguin;Resplendent quetzal::Quetzal::GT;Ruby-throated hummingbird::Hummingbird");
+
+  /* ---------- Africa and Middle East ---------- */
+  add(4, 1, 'Africa and Middle East Food', '', "Hummus::::LB;Falafel::::EG;Shawarma::::LB;Tajine::Tagine::MA;Couscous::::MA;Shakshouka::::TN;Tabbouleh::::LB;Fattoush::::LB;Manakish::::LB;Kunafa;Mansaf::::JO;Kibbeh::::LB;Dolma::::TR;Baklava::::TR;Harira::::MA;B'stilla::Pastilla::MA;Jollof rice::::NG;Injera::::ET;Doro wat::::ET;Bunny chow::::ZA;Biltong::::ZA;Bobotie::::ZA;Braai::::ZA;Suya::::NG;Ugali::::KE;Nyama choma::::KE;Koshari::::EG;Ful medames::::EG;Maqluba;Baba ghanoush;Malva pudding::::ZA;Umm Ali::::EG;Kabsa::::SA;Thieboudienne::::SN");
+  add(4, 2, 'African Safari', '', "Lion;African elephant;Giraffe;Cheetah;Leopard;Hippopotamus;White rhinoceros::White rhino;Plains zebra::Zebra;Mountain gorilla;Chimpanzee;Meerkat;Okapi::::CD;Warthog;African wild dog;Spotted hyena;Nile crocodile;Secretarybird;Aardvark;Honey badger;African buffalo::Cape buffalo;Blue wildebeest::Wildebeest;Impala;Springbok::::ZA;Aldabra giant tortoise::::SC;Ostrich;Shoebill::::UG;Fennec fox;African grey parrot;Ring-tailed lemur::::MG;Aye-aye::::MG;Mandrill;Serval;Caracal;Black mamba;Lilac-breasted roller;Grey crowned crane::::UG");
+  add(4, 0, 'Africa and Middle East Wonders', '', "Giza pyramid complex::Pyramids of Giza::EG;Petra::::JO;Victoria Falls::::ZM;Table Mountain::::ZA;Hassan II Mosque::::MA;Sheikh Zayed Grand Mosque::::AE;Burj Khalifa::::AE;Burj Al Arab::::AE;Dome of the Rock::::IL;Western Wall::::IL;Great Sphinx of Giza::Sphinx::EG;Abu Simbel temples::Abu Simbel::EG;Karnak::::EG;Valley of the Kings::::EG;Rock-Hewn Churches, Lalibela::Lalibela::ET;Great Mosque of Djenné::::ML;Mount Kilimanjaro::::TZ;Ngorongoro Crater::::TZ;Robben Island::::ZA;Cape of Good Hope::::ZA;Chefchaouen::::MA;Jemaa el-Fnaa::::MA;Aït Benhaddou::::MA;Carthage::::TN;Leptis Magna::::LY;Stone Town::::TZ;Wadi Rum::::JO;Masada::::IL;Persepolis::::IR;Naqsh-e Jahan Square::::IR;Sheikh Lotfollah Mosque::::IR;Dead Sea::::JO");
+
+  /* ---------- Oceania ---------- */
+  add(5, 2, 'Animals of Australia and New Zealand', '', "Red kangaroo::Kangaroo::AU;Koala::::AU;Platypus::::AU;Common wombat::Wombat::AU;Tasmanian devil::::AU;Emu::::AU;Laughing kookaburra::Kookaburra::AU;Quokka::::AU;Short-beaked echidna::Echidna::AU;Dingo::::AU;Southern cassowary::Cassowary::AU;Brown kiwi::Kiwi::NZ;Kākāpō::Kakapo::NZ;Tuatara::::NZ;Sugar glider::::AU;Frilled-neck lizard::::AU;Saltwater crocodile::::AU;Thorny devil::::AU;Sulphur-crested cockatoo::Cockatoo::AU;Galah::::AU;Kea::::NZ;Tūī::Tui::NZ;Little penguin::::AU;Wedge-tailed eagle::::AU;Cane toad::::AU;Blue-tongued skink::::AU;Numbat::::AU;Rainbow lorikeet::::AU;Yellow-eyed penguin::::NZ;Weta::::NZ");
+  add(5, 0, 'Wonders of Oceania', '', "Sydney Opera House::::AU;Uluru::::AU;Sydney Harbour Bridge::::AU;Milford Sound::::NZ;Great Barrier Reef::::AU;Bondi Beach::::AU;Sky Tower (Auckland)::Sky Tower::NZ;Twelve Apostles (Victoria)::Twelve Apostles::AU;Kata Tjuta::::AU;Rotorua::::NZ;Franz Josef Glacier::::NZ;Aoraki / Mount Cook::Mount Cook::NZ;Cradle Mountain::::AU;K'gari::Fraser Island::AU;Wave Rock::::AU;Bay of Islands::::NZ;Tongariro National Park::::NZ;Lake Tekapo::::NZ;Blue Mountains (New South Wales)::Blue Mountains::AU;Kakadu National Park::::AU;Daintree Rainforest::::AU;Great Ocean Road::::AU;Bora Bora::::PF;Fiji::::FJ;Rarotonga::::CK;Ningaloo Coast::Ningaloo Reef::AU;Bungle Bungle Range::::AU;Abel Tasman National Park::::NZ;Fiordland::::NZ;Queenstown, New Zealand::Queenstown::NZ");
+  add(5, 1, 'Australian and Kiwi Food', '', "Vegemite::::AU;Tim Tam::::AU;Lamington::::AU;Pavlova (cake)::Pavlova::NZ;Meat pie::::AU;Anzac biscuit::::AU;Damper (food)::Damper::AU;Fairy bread::::AU;Chiko Roll::::AU;Sausage sizzle::::AU;Flat white::::AU;Barramundi::::AU;Hāngī::::NZ;Kumara::::NZ;Whitebait fritter::::NZ;Hokey pokey (ice cream)::Hokey pokey::NZ;L&P (soft drink)::L&P::NZ;Lolly cake::::NZ;Afghan biscuit::::NZ;Iced VoVo::::AU;Weet-Bix::::AU;Milo (drink)::Milo::AU;Macadamia::::AU;Pie floater::::AU;Golden Gaytime::::AU;Cherry Ripe::::AU;Violet Crumble::::AU;Kiwifruit::::NZ;Pineapple lump::::NZ;Lemon, lime and bitters::::AU");
+
+  // ---------- parse ----------
+  CATS.forEach(function (c, i) {
+    c.id = i;
+    c.list = c.items.split(';').map(function (s) { return s.trim(); }).filter(Boolean).map(function (s) {
+      var p = s.split('::');
+      var title = p[0].trim();
+      var label = (p[1] || '').trim() || title.replace(/\s*\(.*\)$/, '').replace(c.trim || '', '').trim();
+      var cc = ((p[2] || '').trim() || c.cc || '').toUpperCase();
+      return { title: title, label: label, cat: c.name, r: c.r, cc: cc };
+    });
+  });
+
+  // ---------- helpers ----------
+  function $(s) { return document.querySelector(s); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  var dn = null;
+  try { dn = new Intl.DisplayNames(['en-GB'], { type: 'region' }); } catch (e) { dn = null; }
+  function flag(cc) {
+    if (!cc || cc.length !== 2) return '';
+    return String.fromCodePoint.apply(null, cc.split('').map(function (ch) { return 127397 + ch.charCodeAt(0); }));
+  }
+  function country(cc) {
+    if (!cc) return '';
+    try { return dn ? dn.of(cc) : cc; } catch (e) { return cc; }
+  }
+  var current = 'home';
+  function show(id) {
+    ['home', 'loading', 'game', 'result'].forEach(function (s) { $('#' + s).hidden = (s !== id); });
+    window.scrollTo(0, 0);
+    current = id;
+  }
+
+  // ---------- Wikipedia photos ----------
+  var imgCache = {};
+  function fetchThumbs(titles) {
+    var url = 'https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=800&titles=' +
+      encodeURIComponent(titles.join('|'));
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 8000);
+    return fetch(url, ctrl ? { signal: ctrl.signal } : undefined)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        clearTimeout(timer);
+        var q = j.query || {};
+        var norm = {}, red = {}, byTitle = {};
+        (q.normalized || []).forEach(function (n) { norm[n.from] = n.to; });
+        (q.redirects || []).forEach(function (n) { red[n.from] = n.to; });
+        Object.keys(q.pages || {}).forEach(function (k) {
+          var p = q.pages[k];
+          if (p && p.thumbnail) byTitle[p.title] = p.thumbnail.source;
+        });
+        var out = {};
+        titles.forEach(function (t) {
+          var n = norm[t] || t;
+          var r = red[n] || n;
+          out[t] = byTitle[r] || null;
+        });
+        return out;
+      })
+      .catch(function () { clearTimeout(timer); return null; });
+  }
+  function loadImages(items) {
+    var need = items.map(function (i) { return i.title; }).filter(function (t, k, a) { return !(t in imgCache) && a.indexOf(t) === k; });
+    var p = need.length ? fetchThumbs(need) : Promise.resolve({});
+    return p.then(function (res) {
+      if (res) need.forEach(function (t) { imgCache[t] = res[t]; });
+      items.forEach(function (i) { i.img = imgCache[i.title] || null; });
+    });
+  }
+
+  function pic(item, size) {
+    var box = el('div', 'pic ' + size);
+    function placeholder() {
+      box.textContent = '';
+      var p = el('div', 'ph');
+      p.appendChild(el('span', null, item.label));
+      box.appendChild(p);
+    }
+    if (item.img) {
+      var im = new Image();
+      im.alt = item.label;
+      im.decoding = 'async';
+      im.referrerPolicy = 'no-referrer';
+      im.onerror = placeholder;
+      im.src = item.img;
+      box.appendChild(im);
+    } else {
+      placeholder();
+    }
+    return box;
+  }
+  function tagged(item) {
+    var f = flag(item.cc);
+    return f ? f + ' ' + item.label : item.label;
+  }
+
+  // ---------- home ----------
+  var filter = -1; // -1 = all regions
+
+  function visibleCats() {
+    return CATS.filter(function (c) { return filter < 0 || c.r === filter; });
+  }
+
+  function buildChips() {
+    var box = $('#chips');
+    box.textContent = '';
+    var defs = [{ n: 'All', c: '#f1f7f8', v: -1 }].concat(REGIONS.map(function (r, i) { return { n: r.n, c: r.c, v: i }; }));
+    defs.forEach(function (d) {
+      var b = el('button', 'chip');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(filter === d.v));
+      var dot = el('span', 'dot');
+      dot.style.background = d.c;
+      b.appendChild(dot);
+      b.appendChild(document.createTextNode(d.n));
+      b.addEventListener('click', function () { filter = d.v; renderHome(); });
+      box.appendChild(b);
+    });
+  }
+
+  function renderHome() {
+    buildChips();
+    var root = $('#groups');
+    root.textContent = '';
+    var cats = visibleCats();
+    GROUPS.forEach(function (g, gi) {
+      var inGroup = cats.filter(function (c) { return c.g === gi; });
+      if (!inGroup.length) return;
+      var sec = el('div', 'group');
+      sec.appendChild(el('h2', null, g));
+      var grid = el('div', 'cats');
+      inGroup.forEach(function (c) {
+        var b = el('button', 'cat');
+        b.type = 'button';
+        b.style.borderLeftColor = REGIONS[c.r].c;
+        b.appendChild(el('b', null, c.name));
+        b.appendChild(el('span', null, (filter < 0 ? REGIONS[c.r].n + ' · ' : '') + c.list.length + ' things'));
+        b.addEventListener('click', function () { start(c); });
+        grid.appendChild(b);
+      });
+      sec.appendChild(grid);
+      root.appendChild(sec);
+    });
+    $('#mixSub').textContent = 'Ten random things from ' + (filter < 0 ? 'every region' : REGIONS[filter].n);
+  }
+
+  // ---------- game ----------
+  var state = null;
+
+  function start(cat) {
+    show('loading');
+    var pool;
+    if (cat) {
+      pool = shuffle(cat.list).slice(0, 16);
+    } else {
+      // one random item from each of up to 18 random categories, so a mix spans many themes and countries
+      pool = shuffle(visibleCats()).slice(0, 18).map(function (c) { return c.list[Math.floor(Math.random() * c.list.length)]; });
+    }
+    loadImages(pool).then(function () {
+      var withImg = pool.filter(function (i) { return i.img; });
+      var without = pool.filter(function (i) { return !i.img; });
+      var picked = shuffle(withImg.concat(without).slice(0, 10)).map(function (i) {
+        return { title: i.title, label: i.label, cat: i.cat, r: i.r, cc: i.cc, img: i.img };
+      });
+      picked.forEach(function (i) { if (i.img) { var pre = new Image(); pre.src = i.img; } });
+      state = { cat: cat, name: cat ? cat.name : 'Surprise mix', items: picked, i: 0, slots: new Array(10).fill(null) };
+      buildSlots();
+      renderGame();
+      show('game');
+    });
+  }
+
+  function buildSlots() {
+    var box = $('#slots');
+    box.textContent = '';
+    for (var n = 0; n < 10; n++) {
+      (function (n) {
+        var b = el('button', 'slot open');
+        b.type = 'button';
+        b.id = 'slot' + n;
+        b.appendChild(el('span', 'n', String(n + 1)));
+        b.appendChild(el('span', 't'));
+        b.addEventListener('click', function () { place(n); });
+        box.appendChild(b);
+      })(n);
+    }
+  }
+
+  function renderGame() {
+    var s = state;
+    var item = s.items[s.i];
+    $('#catName').textContent = s.name;
+    $('#prog').textContent = (s.i + 1) + ' of 10';
+    var photo = $('#photo');
+    photo.textContent = '';
+    photo.appendChild(pic(item, 'big'));
+    $('#itemName').textContent = item.label;
+    $('#itemMeta').textContent = item.cc && s.cat && s.cat.name === 'Flags' ? '' : (flag(item.cc) ? flag(item.cc) + ' ' + country(item.cc) : (s.cat ? '' : item.cat));
+    for (var n = 0; n < 10; n++) {
+      var b = $('#slot' + n);
+      var t = b.querySelector('.t');
+      var old = b.querySelector('.pic');
+      if (old) old.remove();
+      t.textContent = '';
+      var it = s.slots[n];
+      if (it) {
+        b.className = 'slot filled';
+        b.disabled = true;
+        b.insertBefore(pic(it, 'sm'), t);
+        t.textContent = tagged(it);
+      } else {
+        b.className = 'slot open';
+        b.disabled = false;
+        if (n === 0) t.appendChild(el('span', 'tag', 'Best'));
+        else if (n === 9) t.appendChild(el('span', 'tag', 'Worst'));
+      }
+    }
+  }
+
+  function place(n) {
+    if (!state || state.slots[n]) return;
+    state.slots[n] = state.items[state.i];
+    state.i++;
+    if (state.i >= 10) showResult();
+    else renderGame();
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (current !== 'game' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^[0-9]$/.test(e.key)) place(e.key === '0' ? 9 : Number(e.key) - 1);
+  });
+
+  // ---------- result ----------
+  function resultText() {
+    var lines = ['Blind Rank: ' + state.name];
+    state.slots.forEach(function (it, i) { lines.push((i + 1) + '. ' + tagged(it)); });
+    return lines.join('\n');
+  }
+
+  function showResult() {
+    var s = state;
+    $('#resTitle').textContent = s.name;
+    var codes = {};
+    s.slots.forEach(function (it) { if (it.cc) codes[it.cc] = true; });
+    var nCountries = Object.keys(codes).length;
+    $('#resSub').textContent = 'You put ' + tagged(s.slots[0]) + ' first and ' + tagged(s.slots[9]) + ' last.' +
+      (nCountries > 1 ? ' This round covered ' + nCountries + ' countries.' : '');
+    var list = $('#rankList');
+    list.textContent = '';
+    s.slots.forEach(function (it, i) {
+      var li = el('li');
+      li.appendChild(el('span', 'n', String(i + 1)));
+      li.appendChild(pic(it, 'md'));
+      var t = el('span', 't', tagged(it));
+      var sub = [];
+      if (s.cat == null) sub.push(it.cat);
+      if (it.cc && !(s.cat && (s.cat.name === 'Flags' || s.cat.cc))) sub.push(country(it.cc));
+      if (sub.length) t.appendChild(el('small', null, sub.join(' · ')));
+      li.appendChild(t);
+      list.appendChild(li);
+    });
+    $('#copyMsg').textContent = '';
+    show('result');
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return legacyCopy(text); });
+    }
+    return Promise.resolve(legacyCopy(text));
+  }
+  function legacyCopy(text) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  $('#copyBtn').addEventListener('click', function () {
+    copyText(resultText()).then(function (ok) {
+      $('#copyMsg').textContent = ok ? 'Copied. Paste it into a message to compare with friends.' : 'Copy was blocked here. Select the list above instead.';
+    });
+  });
+  $('#againBtn').addEventListener('click', function () { start(state.cat); });
+  $('#homeBtn').addEventListener('click', function () { show('home'); });
+  $('#backBtn').addEventListener('click', function () { show('home'); });
+  $('#mixBtn').addEventListener('click', function () { start(null); });
+
+  $('#stripe').style.background = 'linear-gradient(90deg,' + REGIONS.map(function (r, i) {
+    return r.c + ' ' + (i * 100 / REGIONS.length) + '% ' + ((i + 1) * 100 / REGIONS.length) + '%';
+  }).join(',') + ')';
+  renderHome();
+})();
+</script>
+</body>
+</html>
